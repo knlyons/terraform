@@ -37,7 +37,10 @@ func resourceIBMCloudCfPrivateDomain() *schema.Resource {
 }
 
 func resourceIBMCloudCfPrivateDomainCreate(d *schema.ResourceData, meta interface{}) error {
-	prdomainClient := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	if err != nil {
+		return err
+	}
 	name := d.Get("name").(string)
 	orgGUID := d.Get("org_guid").(string)
 
@@ -57,7 +60,10 @@ func resourceIBMCloudCfPrivateDomainCreate(d *schema.ResourceData, meta interfac
 }
 
 func resourceIBMCloudCfPrivateDomainRead(d *schema.ResourceData, meta interface{}) error {
-	prdomainClient := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	if err != nil {
+		return err
+	}
 	prdomainGUID := d.Id()
 
 	prdomain, err := prdomainClient.Get(prdomainGUID)
@@ -71,11 +77,14 @@ func resourceIBMCloudCfPrivateDomainRead(d *schema.ResourceData, meta interface{
 }
 
 func resourceIBMCloudCfPrivateDomainDelete(d *schema.ResourceData, meta interface{}) error {
-	prdomainClient := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	if err != nil {
+		return err
+	}
 
 	prdomainGUID := d.Id()
 
-	err := prdomainClient.Delete(prdomainGUID, true)
+	err = prdomainClient.Delete(prdomainGUID, true)
 	if err != nil {
 		return fmt.Errorf("Error deleting private domain: %s", err)
 	}
@@ -86,7 +95,10 @@ func resourceIBMCloudCfPrivateDomainDelete(d *schema.ResourceData, meta interfac
 }
 
 func resourceIBMCloudCfPrivateDomainExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	prdomainClient := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	if err != nil {
+		return false, err
+	}
 	prdomainGUID := d.Id()
 
 	prdomain, err := prdomainClient.Get(prdomainGUID)

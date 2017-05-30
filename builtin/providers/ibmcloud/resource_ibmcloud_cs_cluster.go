@@ -174,7 +174,10 @@ func resourceIBMCloudArmadaCluster() *schema.Resource {
 }
 
 func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{}) error {
-	clusterClient := meta.(ClientSession).ClusterClient()
+	clusterClient, err := meta.(ClientSession).ClusterClient()
+	if err != nil {
+		return err
+	}
 
 	name := d.Get("name").(string)
 	datacenter := d.Get("datacenter").(string)
@@ -215,7 +218,7 @@ func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{
 			"Error waiting for workers of cluster (%s) to become ready: %s", d.Id(), err)
 	}
 
-	subnetClient := meta.(ClientSession).ClusterSubnetClient()
+	subnetClient, _ := meta.(ClientSession).ClusterSubnetClient()
 	subnetIDs := d.Get("subnet_id").(*schema.Set)
 	for _, subnetID := range subnetIDs.List() {
 		if subnetID != "" {
@@ -225,7 +228,7 @@ func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{
 			}
 		}
 	}
-	webhookClient := meta.(ClientSession).ClusterWebHooksClient()
+	webhookClient, _ := meta.(ClientSession).ClusterWebHooksClient()
 	for _, e := range webhooks {
 		pack := e.(map[string]interface{})
 		webhook := v1.WebHook{
@@ -239,7 +242,7 @@ func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{
 	}
 
 	workersInfo := []map[string]string{}
-	workerClient := meta.(ClientSession).ClusterWorkerClient()
+	workerClient, _ := meta.(ClientSession).ClusterWorkerClient()
 	workerFields, err := workerClient.List(cls.ID, targetEnv)
 	if err != nil {
 		return err
@@ -268,7 +271,10 @@ func resourceIBMCloudArmadaClusterRead(d *schema.ResourceData, meta interface{})
 
 	targetEnv := getClusterTargetHeader(d)
 
-	client := meta.(ClientSession).ClusterClient()
+	client, err := meta.(ClientSession).ClusterClient()
+	if err != nil {
+		return err
+	}
 
 	clusterID := d.Id()
 	cls, err := client.Find(clusterID, targetEnv)
@@ -289,9 +295,12 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 
 	targetEnv := getClusterTargetHeader(d)
 
-	subnetClient := meta.(ClientSession).ClusterSubnetClient()
-	webhookClient := meta.(ClientSession).ClusterWebHooksClient()
-	workerClient := meta.(ClientSession).ClusterWorkerClient()
+	subnetClient, err := meta.(ClientSession).ClusterSubnetClient()
+	if err != nil {
+		return err
+	}
+	webhookClient, _ := meta.(ClientSession).ClusterWebHooksClient()
+	workerClient, _ := meta.(ClientSession).ClusterWorkerClient()
 
 	clusterID := d.Id()
 	workersInfo := []map[string]string{}
@@ -416,7 +425,10 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 
 func getID(d *schema.ResourceData, meta interface{}, clusterID string, oldWorkers []interface{}, workerInfo []map[string]string) (string, error) {
 	targetEnv := getClusterTargetHeader(d)
-	workerClient := meta.(ClientSession).ClusterWorkerClient()
+	workerClient, err := meta.(ClientSession).ClusterWorkerClient()
+	if err != nil {
+		return "", err
+	}
 	workerFields, err := workerClient.List(clusterID, targetEnv)
 	if err != nil {
 		return "", err
@@ -445,9 +457,12 @@ func getID(d *schema.ResourceData, meta interface{}, clusterID string, oldWorker
 
 func resourceIBMCloudArmadaClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	targetEnv := getClusterTargetHeader(d)
-	client := meta.(ClientSession).ClusterClient()
+	client, err := meta.(ClientSession).ClusterClient()
+	if err != nil {
+		return err
+	}
 	clusterID := d.Id()
-	err := client.Delete(clusterID, targetEnv)
+	err = client.Delete(clusterID, targetEnv)
 	if err != nil {
 		return fmt.Errorf("Error deleting cluster: %s", err)
 	}
@@ -459,7 +474,8 @@ func WaitForClusterAvailable(d *schema.ResourceData, meta interface{}, target *v
 	log.Printf("Waiting for cluster (%s) to be available.", d.Id())
 	id := d.Id()
 
-	client := meta.(ClientSession).ClusterClient()
+	client, _ := meta.(ClientSession).ClusterClient()
+
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"retry", clusterProvisioning},
 		Target:     []string{clusterNormal},
@@ -494,7 +510,7 @@ func WaitForWorkerAvailable(d *schema.ResourceData, meta interface{}, target *v1
 	log.Printf("Waiting for worker of the cluster (%s) to be available.", d.Id())
 	id := d.Id()
 
-	workerClient := meta.(ClientSession).ClusterWorkerClient()
+	workerClient, _ := meta.(ClientSession).ClusterWorkerClient()
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"retry", workerProvisioning},
 		Target:     []string{workerNormal},
@@ -528,7 +544,10 @@ func workerStateRefreshFunc(client v1.Workers, instanceID string, d *schema.Reso
 
 func resourceIBMCloudArmadaClusterExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	targetEnv := getClusterTargetHeader(d)
-	client := meta.(ClientSession).ClusterClient()
+	client, err := meta.(ClientSession).ClusterClient()
+	if err != nil {
+		return false, err
+	}
 	clusterID := d.Id()
 	cls, err := client.Find(clusterID, targetEnv)
 	if err != nil {

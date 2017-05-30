@@ -58,7 +58,10 @@ func resourceIBMCloudCfRoute() *schema.Resource {
 }
 
 func resourceIBMCloudCfRouteCreate(d *schema.ResourceData, meta interface{}) error {
-	routeClient := meta.(ClientSession).CloudFoundryRouteClient()
+	routeClient, err := meta.(ClientSession).CloudFoundryRouteClient()
+	if err != nil {
+		return err
+	}
 
 	spaceGUID := d.Get("space_guid").(string)
 	domainGUID := d.Get("domain_guid").(string)
@@ -91,7 +94,10 @@ func resourceIBMCloudCfRouteCreate(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceIBMCloudCfRouteRead(d *schema.ResourceData, meta interface{}) error {
-	routeClient := meta.(ClientSession).CloudFoundryRouteClient()
+	routeClient, err := meta.(ClientSession).CloudFoundryRouteClient()
+	if err != nil {
+		return err
+	}
 	routeGUID := d.Id()
 
 	route, err := routeClient.Get(routeGUID)
@@ -111,7 +117,10 @@ func resourceIBMCloudCfRouteRead(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceIBMCloudCfRouteUpdate(d *schema.ResourceData, meta interface{}) error {
-	routeClient := meta.(ClientSession).CloudFoundryRouteClient()
+	routeClient, err := meta.(ClientSession).CloudFoundryRouteClient()
+	if err != nil {
+		return err
+	}
 
 	routeGUID := d.Id()
 	params := v2.RouteUpdateRequest{}
@@ -128,7 +137,7 @@ func resourceIBMCloudCfRouteUpdate(d *schema.ResourceData, meta interface{}) err
 		params.Path = helpers.String(d.Get("path").(string))
 	}
 
-	_, err := routeClient.Update(routeGUID, params)
+	_, err = routeClient.Update(routeGUID, params)
 	if err != nil {
 		return fmt.Errorf("Error updating route: %s", err)
 	}
@@ -136,10 +145,13 @@ func resourceIBMCloudCfRouteUpdate(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceIBMCloudCfRouteDelete(d *schema.ResourceData, meta interface{}) error {
-	routeClient := meta.(ClientSession).CloudFoundryRouteClient()
+	routeClient, err := meta.(ClientSession).CloudFoundryRouteClient()
+	if err != nil {
+		return err
+	}
 	routeGUID := d.Id()
 
-	err := routeClient.Delete(routeGUID, true)
+	err = routeClient.Delete(routeGUID, true)
 	if err != nil {
 		return fmt.Errorf("Error deleting route: %s", err)
 	}
@@ -149,7 +161,10 @@ func resourceIBMCloudCfRouteDelete(d *schema.ResourceData, meta interface{}) err
 	return nil
 }
 func resourceIBMCloudCfRouteExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	routeClient := meta.(ClientSession).CloudFoundryRouteClient()
+	routeClient, err := meta.(ClientSession).CloudFoundryRouteClient()
+	if err != nil {
+		return false, err
+	}
 	routeGUID := d.Id()
 
 	route, err := routeClient.Get(routeGUID)

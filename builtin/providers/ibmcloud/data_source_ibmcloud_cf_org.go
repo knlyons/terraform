@@ -21,7 +21,10 @@ func dataSourceIBMCloudCfOrg() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfOrgRead(d *schema.ResourceData, meta interface{}) error {
-	or := meta.(ClientSession).CloudFoundryOrgClient()
+	or, err := meta.(ClientSession).CloudFoundryOrgClient()
+	if err != nil {
+		return err
+	}
 
 	org := d.Get("org").(string)
 

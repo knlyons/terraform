@@ -21,7 +21,10 @@ func dataSourceIBMCloudCfAccount() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfAccountRead(d *schema.ResourceData, meta interface{}) error {
-	bmxSess := meta.(ClientSession).BluemixSession()
+	bmxSess, err := meta.(ClientSession).BluemixSession()
+	if err != nil {
+		return err
+	}
 	or := meta.(ClientSession).BluemixAcccountClient()
 
 	orgGUID := d.Get("org_guid").(string)

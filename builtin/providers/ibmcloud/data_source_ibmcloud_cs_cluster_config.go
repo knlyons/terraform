@@ -49,8 +49,10 @@ func dataSourceIBMCloudArmadaClusterConfig() *schema.Resource {
 }
 
 func dataSourceIBMCloudArmadaClusterConfigRead(d *schema.ResourceData, meta interface{}) error {
-	var err error
-	client := meta.(ClientSession).ClusterClient()
+	client, err := meta.(ClientSession).ClusterClient()
+	if err != nil {
+		return err
+	}
 
 	name := d.Get("cluster_name_id").(string)
 

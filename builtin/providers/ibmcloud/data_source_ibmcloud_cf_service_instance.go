@@ -33,10 +33,11 @@ func dataSourceIBMCloudCfServiceInstance() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfServiceInstanceRead(d *schema.ResourceData, meta interface{}) error {
+	sr, err := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	if err != nil {
+		return nil
+	}
 	name := d.Get("name").(string)
-
-	sr := meta.(ClientSession).CloudFoundryServiceInstanceClient()
-
 	inst, err := sr.FindByName(name)
 	if err != nil {
 		return err

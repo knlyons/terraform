@@ -73,7 +73,10 @@ func dataSourceIBMCloudCfApp() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfAppRead(d *schema.ResourceData, meta interface{}) error {
-	appClient := meta.(ClientSession).CloudFoundryAppClient()
+	appClient, err := meta.(ClientSession).CloudFoundryAppClient()
+	if err != nil {
+		return err
+	}
 
 	name := d.Get("name").(string)
 	spaceGUID := d.Get("space_guid").(string)

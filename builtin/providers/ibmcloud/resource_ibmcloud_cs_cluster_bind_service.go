@@ -76,7 +76,10 @@ func getClusterTargetHeader(d *schema.ResourceData) *v1.ClusterTargetHeader {
 }
 
 func resourceIBMCloudClusterBindServiceCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(ClientSession).ClusterClient()
+	client, err := meta.(ClientSession).ClusterClient()
+	if err != nil {
+		return err
+	}
 	clusterNameID := d.Get("cluster_name_id").(string)
 	serviceInstanceSpaceGUID := d.Get("service_instance_space_guid").(string)
 	serviceInstanceNameID := d.Get("service_instance_name_id").(string)
@@ -110,13 +113,16 @@ func resourceIBMCloudClusterBindServiceRead(d *schema.ResourceData, meta interfa
 }
 
 func resourceIBMCloudClusterBindServiceDelete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(ClientSession).ClusterClient()
+	client, err := meta.(ClientSession).ClusterClient()
+	if err != nil {
+		return err
+	}
 	clusterID := d.Id()
 	namespace := d.Get("namespace_id").(string)
 	serviceInstanceNameID := d.Get("service_instance_name_id").(string)
 	targetEnv := getClusterTargetHeader(d)
 
-	err := client.UnBindService(clusterID, namespace, serviceInstanceNameID, targetEnv)
+	err = client.UnBindService(clusterID, namespace, serviceInstanceNameID, targetEnv)
 	if err != nil {
 		return fmt.Errorf("Error unbinding service: %s", err)
 	}

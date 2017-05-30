@@ -37,7 +37,10 @@ func resourceIBMCloudCfSharedDomain() *schema.Resource {
 }
 
 func resourceIBMCloudCfSharedDomainCreate(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	if err != nil {
+		return err
+	}
 	name := d.Get("name").(string)
 	routerGroupGUID := d.Get("router_group_guid").(string)
 
@@ -57,7 +60,10 @@ func resourceIBMCloudCfSharedDomainCreate(d *schema.ResourceData, meta interface
 }
 
 func resourceIBMCloudCfSharedDomainRead(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	if err != nil {
+		return err
+	}
 	shdomainGUID := d.Id()
 
 	shdomain, err := client.Get(shdomainGUID)
@@ -71,11 +77,14 @@ func resourceIBMCloudCfSharedDomainRead(d *schema.ResourceData, meta interface{}
 }
 
 func resourceIBMCloudCfSharedDomainDelete(d *schema.ResourceData, meta interface{}) error {
-	client := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	if err != nil {
+		return err
+	}
 
 	shdomainGUID := d.Id()
 
-	err := client.Delete(shdomainGUID, true)
+	err = client.Delete(shdomainGUID, true)
 	if err != nil {
 		return fmt.Errorf("Error deleting shared domain: %s", err)
 	}
@@ -86,7 +95,10 @@ func resourceIBMCloudCfSharedDomainDelete(d *schema.ResourceData, meta interface
 }
 
 func resourceIBMCloudCfSharedDomainExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	client := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	if err != nil {
+		return false, err
+	}
 	shdomainGUID := d.Id()
 
 	shdomain, err := client.Get(shdomainGUID)

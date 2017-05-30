@@ -27,8 +27,11 @@ func dataSourceIBMCloudCfSpace() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfSpaceRead(d *schema.ResourceData, meta interface{}) error {
-	or := meta.(ClientSession).CloudFoundryOrgClient()
-	sp := meta.(ClientSession).CloudFoundrySpaceClient()
+	or, err := meta.(ClientSession).CloudFoundryOrgClient()
+	if err != nil {
+		return err
+	}
+	sp, _ := meta.(ClientSession).CloudFoundrySpaceClient()
 
 	space := d.Get("space").(string)
 	org := d.Get("org").(string)

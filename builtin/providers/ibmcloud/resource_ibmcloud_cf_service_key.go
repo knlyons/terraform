@@ -45,7 +45,10 @@ func resourceIBMCloudCfServiceKey() *schema.Resource {
 }
 
 func resourceIBMCloudCfServiceKeyCreate(d *schema.ResourceData, meta interface{}) error {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	if err != nil {
+		return err
+	}
 	name := d.Get("name").(string)
 	serviceInstanceGUID := d.Get("service_instance_guid").(string)
 	var parameters map[string]interface{}
@@ -65,7 +68,10 @@ func resourceIBMCloudCfServiceKeyCreate(d *schema.ResourceData, meta interface{}
 }
 
 func resourceIBMCloudCfServiceKeyRead(d *schema.ResourceData, meta interface{}) error {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	if err != nil {
+		return err
+	}
 	serviceKeyGUID := d.Id()
 
 	serviceKey, err := serviceClient.Get(serviceKeyGUID)
@@ -78,11 +84,14 @@ func resourceIBMCloudCfServiceKeyRead(d *schema.ResourceData, meta interface{}) 
 }
 
 func resourceIBMCloudCfServiceKeyDelete(d *schema.ResourceData, meta interface{}) error {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	if err != nil {
+		return err
+	}
 
 	serviceKeyGUID := d.Id()
 
-	err := serviceClient.Delete(serviceKeyGUID)
+	err = serviceClient.Delete(serviceKeyGUID)
 	if err != nil {
 		return fmt.Errorf("Error deleting service key: %s", err)
 	}
@@ -93,7 +102,10 @@ func resourceIBMCloudCfServiceKeyDelete(d *schema.ResourceData, meta interface{}
 }
 
 func resourceIBMCloudCfServiceKeyExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceKeyClient()
+	if err != nil {
+		return false, err
+	}
 	serviceKeyGUID := d.Id()
 
 	serviceKey, err := serviceClient.Get(serviceKeyGUID)

@@ -22,6 +22,11 @@ import (
 //SoftlayerRestEndpoint rest endpoint of SoftLayer
 const SoftlayerRestEndpoint = "https://api.softlayer.com/rest/v3"
 
+var (
+	errEmptySoftLayerCredentials = errors.New("softlayer_username and softlayer_api_key must be provided. Please see the documentation on how to configure them")
+	errEmptyBluemixCredentials   = errors.New("bluemix_api_key must be provided. Please see the documentation on how to configure it")
+)
+
 //Config stores user provider input
 type Config struct {
 	//BluemixAPIKey is the Bluemix api key
@@ -67,25 +72,25 @@ type Session struct {
 // ClientSession  contains  Bluemix/SoftLayer session and clients
 type ClientSession interface {
 	SoftLayerSession() *slsession.Session
-	BluemixSession() *bxsession.Session
+	BluemixSession() (*bxsession.Session, error)
 
-	ClusterClient() k8sclusterv1.Clusters
-	ClusterWorkerClient() k8sclusterv1.Workers
-	ClusterSubnetClient() k8sclusterv1.Subnets
-	ClusterWebHooksClient() k8sclusterv1.Webhooks
+	ClusterClient() (k8sclusterv1.Clusters, error)
+	ClusterWorkerClient() (k8sclusterv1.Workers, error)
+	ClusterSubnetClient() (k8sclusterv1.Subnets, error)
+	ClusterWebHooksClient() (k8sclusterv1.Webhooks, error)
 
-	CloudFoundryAppClient() cfv2.Apps
-	CloudFoundryOrgClient() cfv2.Organizations
-	CloudFoundryServiceBindingClient() cfv2.ServiceBindings
-	CloudFoundryServiceInstanceClient() cfv2.ServiceInstances
-	CloudFoundryServicePlanClient() cfv2.ServicePlans
-	CloudFoundryServiceKeyClient() cfv2.ServiceKeys
-	CloudFoundryServiceOfferingClient() cfv2.ServiceOfferings
-	CloudFoundrySpaceClient() cfv2.Spaces
-	CloudFoundrySpaceQuotaClient() cfv2.SpaceQuotas
-	CloudFoundryRouteClient() cfv2.Routes
-	CloudFoundrySharedDomainClient() cfv2.SharedDomains
-	CloudFoundryPrivateDomainClient() cfv2.PrivateDomains
+	CloudFoundryAppClient() (cfv2.Apps, error)
+	CloudFoundryOrgClient() (cfv2.Organizations, error)
+	CloudFoundryServiceBindingClient() (cfv2.ServiceBindings, error)
+	CloudFoundryServiceInstanceClient() (cfv2.ServiceInstances, error)
+	CloudFoundryServicePlanClient() (cfv2.ServicePlans, error)
+	CloudFoundryServiceKeyClient() (cfv2.ServiceKeys, error)
+	CloudFoundryServiceOfferingClient() (cfv2.ServiceOfferings, error)
+	CloudFoundrySpaceClient() (cfv2.Spaces, error)
+	CloudFoundrySpaceQuotaClient() (cfv2.SpaceQuotas, error)
+	CloudFoundryRouteClient() (cfv2.Routes, error)
+	CloudFoundrySharedDomainClient() (cfv2.SharedDomains, error)
+	CloudFoundryPrivateDomainClient() (cfv2.PrivateDomains, error)
 
 	BluemixAcccountClient() accountv2.Accounts
 }
@@ -93,11 +98,13 @@ type ClientSession interface {
 type clientSession struct {
 	session *Session
 
-	csClient  k8sclusterv1.Clusters
-	csWorker  k8sclusterv1.Workers
-	csSubnet  k8sclusterv1.Subnets
-	csWebHook k8sclusterv1.Webhooks
+	csConfigErr error
+	csClient    k8sclusterv1.Clusters
+	csWorker    k8sclusterv1.Workers
+	csSubnet    k8sclusterv1.Subnets
+	csWebHook   k8sclusterv1.Webhooks
 
+	cfConfigErr              error
 	cfAppClient              cfv2.Apps
 	cfOrgClient              cfv2.Organizations
 	cfServiceInstanceClient  cfv2.ServiceInstances
@@ -111,6 +118,7 @@ type clientSession struct {
 	cfSharedDomainClient     cfv2.SharedDomains
 	cfPrivateDomainClient    cfv2.PrivateDomains
 
+	accountConfigErr     error
 	bluemixAccountClient accountv2.Accounts
 }
 
@@ -120,93 +128,93 @@ func (sess clientSession) SoftLayerSession() *slsession.Session {
 }
 
 // CloudFoundryOrgClient providers Cloud Foundary org APIs
-func (sess clientSession) CloudFoundryOrgClient() cfv2.Organizations {
-	return sess.cfOrgClient
+func (sess clientSession) CloudFoundryOrgClient() (cfv2.Organizations, error) {
+	return sess.cfOrgClient, sess.cfConfigErr
 }
 
 // CloudFoundrySpaceClient providers Cloud Foundary space APIs
-func (sess clientSession) CloudFoundrySpaceClient() cfv2.Spaces {
-	return sess.cfSpaceClient
+func (sess clientSession) CloudFoundrySpaceClient() (cfv2.Spaces, error) {
+	return sess.cfSpaceClient, sess.cfConfigErr
 }
 
 // CloudFoundrySpaceQuotaClient providers Cloud Foundary space quota APIs
-func (sess clientSession) CloudFoundrySpaceQuotaClient() cfv2.SpaceQuotas {
-	return sess.cfSpaceQuotaClient
+func (sess clientSession) CloudFoundrySpaceQuotaClient() (cfv2.SpaceQuotas, error) {
+	return sess.cfSpaceQuotaClient, sess.cfConfigErr
 }
 
 // CloudFoundryAppClient providers Cloud Foundary app APIs
-func (sess clientSession) CloudFoundryAppClient() cfv2.Apps {
-	return sess.cfAppClient
+func (sess clientSession) CloudFoundryAppClient() (cfv2.Apps, error) {
+	return sess.cfAppClient, sess.cfConfigErr
 }
 
 // CloudFoundryServiceBindingClient providers Cloud Foundary service binding APIs
-func (sess clientSession) CloudFoundryServiceBindingClient() cfv2.ServiceBindings {
-	return sess.cfServiceBindingClient
+func (sess clientSession) CloudFoundryServiceBindingClient() (cfv2.ServiceBindings, error) {
+	return sess.cfServiceBindingClient, sess.cfConfigErr
 }
 
 // CloudFoundryServiceInstanceClient providers Cloud Foundary service APIs
-func (sess clientSession) CloudFoundryServiceInstanceClient() cfv2.ServiceInstances {
-	return sess.cfServiceInstanceClient
+func (sess clientSession) CloudFoundryServiceInstanceClient() (cfv2.ServiceInstances, error) {
+	return sess.cfServiceInstanceClient, sess.cfConfigErr
 }
 
 // CloudFoundryServiceClient providers Cloud Foundary service APIs
-func (sess clientSession) CloudFoundryServicePlanClient() cfv2.ServicePlans {
-	return sess.cfServicePlanClient
+func (sess clientSession) CloudFoundryServicePlanClient() (cfv2.ServicePlans, error) {
+	return sess.cfServicePlanClient, sess.cfConfigErr
 }
 
 // CloudFoundryServiceKeyClient providers Cloud Foundary service APIs
-func (sess clientSession) CloudFoundryServiceKeyClient() cfv2.ServiceKeys {
-	return sess.cfServiceKeysClient
+func (sess clientSession) CloudFoundryServiceKeyClient() (cfv2.ServiceKeys, error) {
+	return sess.cfServiceKeysClient, sess.cfConfigErr
 }
 
 // CloudFoundryServiceClient providers Cloud Foundary service APIs
-func (sess clientSession) CloudFoundryServiceOfferingClient() cfv2.ServiceOfferings {
-	return sess.cfServiceOfferingsClient
+func (sess clientSession) CloudFoundryServiceOfferingClient() (cfv2.ServiceOfferings, error) {
+	return sess.cfServiceOfferingsClient, sess.cfConfigErr
 }
 
 // CloudFoundryRoute providers Cloud Foundary route APIs
-func (sess clientSession) CloudFoundryRouteClient() cfv2.Routes {
-	return sess.cfRouteClient
+func (sess clientSession) CloudFoundryRouteClient() (cfv2.Routes, error) {
+	return sess.cfRouteClient, sess.cfConfigErr
 }
 
 // CloudFoundrySharedDomainClient providers Cloud Foundary shared domain APIs
-func (sess clientSession) CloudFoundrySharedDomainClient() cfv2.SharedDomains {
-	return sess.cfSharedDomainClient
+func (sess clientSession) CloudFoundrySharedDomainClient() (cfv2.SharedDomains, error) {
+	return sess.cfSharedDomainClient, sess.cfConfigErr
 }
 
 // CloudFoundryPrivateDomainClient providers Cloud Foundary private domain APIs
-func (sess clientSession) CloudFoundryPrivateDomainClient() cfv2.PrivateDomains {
-	return sess.cfPrivateDomainClient
+func (sess clientSession) CloudFoundryPrivateDomainClient() (cfv2.PrivateDomains, error) {
+	return sess.cfPrivateDomainClient, sess.cfConfigErr
 }
 
 // BluemixAcccountClient providers Bluemix Account APIs
-func (sess clientSession) BluemixAcccountClient() accountv2.Accounts {
-	return sess.bluemixAccountClient
+func (sess clientSession) BluemixAcccountClient() (accountv2.Accounts, error) {
+	return sess.bluemixAccountClient, sess.accountConfigErr
 }
 
 // ClusterClient providers Bluemix Kubernetes Cluster APIs
-func (sess clientSession) ClusterClient() k8sclusterv1.Clusters {
-	return sess.csClient
+func (sess clientSession) ClusterClient() (k8sclusterv1.Clusters, error) {
+	return sess.csClient, sess.csConfigErr
 }
 
 // ClusterWorkerClient providers Bluemix Kubernetes Cluster APIs
-func (sess clientSession) ClusterWorkerClient() k8sclusterv1.Workers {
-	return sess.csWorker
+func (sess clientSession) ClusterWorkerClient() (k8sclusterv1.Workers, error) {
+	return sess.csWorker, sess.csConfigErr
 }
 
 // ClusterSubnetClient providers Bluemix Kubernetes Cluster APIs
-func (sess clientSession) ClusterSubnetClient() k8sclusterv1.Subnets {
-	return sess.csSubnet
+func (sess clientSession) ClusterSubnetClient() (k8sclusterv1.Subnets, error) {
+	return sess.csSubnet, sess.csConfigErr
 }
 
 // ClusterWebHooksClient providers Bluemix Kubernetes Cluster APIs
-func (sess clientSession) ClusterWebHooksClient() k8sclusterv1.Webhooks {
-	return sess.csWebHook
+func (sess clientSession) ClusterWebHooksClient() (k8sclusterv1.Webhooks, error) {
+	return sess.csWebHook, sess.csConfigErr
 }
 
 // BluemixSession to provide the Bluemix Session
-func (sess clientSession) BluemixSession() *bxsession.Session {
-	return sess.session.BluemixSession
+func (sess clientSession) BluemixSession() (*bxsession.Session, error) {
+	return sess.session.BluemixSession, sess.cfConfigErr
 }
 
 // ClientSession configures and returns a fully initialized ClientSession
@@ -223,6 +231,9 @@ func (c *Config) ClientSession() (interface{}, error) {
 
 	if sess.BluemixSession == nil {
 		log.Println("Skipping Bluemix Clients configuration")
+		session.csConfigErr = errEmptyBluemixCredentials
+		session.cfConfigErr = errEmptyBluemixCredentials
+		session.accountConfigErr = errEmptyBluemixCredentials
 		return session, nil
 	}
 
@@ -250,31 +261,26 @@ func (c *Config) ClientSession() (interface{}, error) {
 	}
 	accountAPI := accClient.Accounts()
 
-	skipClusterConfig := c.SkipServiceConfig.Contains("cluster")
-
-	if !skipClusterConfig {
-		clusterClient, err := k8sclusterv1.New(sess.BluemixSession)
-		if err != nil {
-			if apiErr, ok := err.(bmxerror.Error); ok {
-				if apiErr.Code() == endpoints.ErrCodeServiceEndpoint {
-					return nil, fmt.Errorf(`Cluster service doesn't exist in the region %q.\nTo remediate the problem please skip the cluster service configuration by specifying "cluster" in skip_service_configuration in the provider block`, c.Region)
-
-				}
+	clusterClient, err := k8sclusterv1.New(sess.BluemixSession)
+	var clusterConfigErr error
+	if err != nil {
+		if apiErr, ok := err.(bmxerror.Error); ok {
+			if apiErr.Code() == endpoints.ErrCodeServiceEndpoint {
+				clusterConfigErr = fmt.Errorf(`Cluster service doesn't exist in the region %q`, c.Region)
+				session.csConfigErr = clusterConfigErr
 			}
-			return nil, err
 		}
+		return nil, err
+	}
+	if clusterConfigErr == nil {
 		clustersAPI := clusterClient.Clusters()
 		clusterWorkerAPI := clusterClient.Workers()
 		clusterSubnetsAPI := clusterClient.Subnets()
 		clusterWebhookAPI := clusterClient.WebHooks()
-
 		session.csClient = clustersAPI
 		session.csSubnet = clusterSubnetsAPI
 		session.csWorker = clusterWorkerAPI
 		session.csWebHook = clusterWebhookAPI
-
-	} else {
-		log.Println("Skipping cluster configuration")
 	}
 
 	session.cfAppClient = appAPI
@@ -295,13 +301,9 @@ func (c *Config) ClientSession() (interface{}, error) {
 
 func newSession(c *Config) (*Session, error) {
 	ibmcloudSession := &Session{}
-	skipBluemix, skipSoftLayer := c.SkipServiceConfig.Contains("bluemix"), c.SkipServiceConfig.Contains("softlayer")
 
-	if !skipSoftLayer {
+	if c.SoftLayerUserName != "" && c.SoftLayerAPIKey != "" {
 		log.Println("Configuring SoftLayer Session ")
-		if c.SoftLayerUserName == "" || c.SoftLayerAPIKey == "" {
-			return nil, errors.New("softlayer_username and softlayer_api_key must be provided. Please see the documentation on how to configure them")
-		}
 		softlayerSession := &slsession.Session{
 			Endpoint: c.SoftLayerEndpointURL,
 			Timeout:  c.SoftLayerTimeout,
@@ -311,11 +313,9 @@ func newSession(c *Config) (*Session, error) {
 		}
 		ibmcloudSession.SoftLayerSession = softlayerSession
 	}
-	if !skipBluemix {
+
+	if c.BluemixAPIKey != "" {
 		log.Println("Configuring Bluemix Session")
-		if c.BluemixAPIKey == "" {
-			return nil, errors.New("bluemix_api_key must be provided. Please see the documentation on how to configure it")
-		}
 		var sess *bxsession.Session
 		bmxConfig := &bluemix.Config{
 			BluemixAPIKey: c.BluemixAPIKey,
@@ -331,5 +331,6 @@ func newSession(c *Config) (*Session, error) {
 		}
 		ibmcloudSession.BluemixSession = sess
 	}
+
 	return ibmcloudSession, nil
 }

@@ -24,7 +24,10 @@ func dataSourceIBMCloudCfPrivateDomainRead(d *schema.ResourceData, meta interfac
 
 	domainName := d.Get("name").(string)
 
-	privateDomain := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	privateDomain, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	if err != nil {
+		return err
+	}
 	prdomain, err := privateDomain.FindByName(domainName)
 	if err != nil {
 		return fmt.Errorf("Error retrieving domain: %s", err)

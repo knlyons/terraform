@@ -74,7 +74,10 @@ func resourceIBMCloudCfServiceInstance() *schema.Resource {
 }
 
 func resourceIBMCloudCfServiceInstanceCreate(d *schema.ResourceData, meta interface{}) error {
-	serviceInst := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	serviceInst, err := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	if err != nil {
+		return err
+	}
 	serviceName := d.Get("service").(string)
 	plan := d.Get("plan").(string)
 	name := d.Get("name").(string)
@@ -85,13 +88,13 @@ func resourceIBMCloudCfServiceInstanceCreate(d *schema.ResourceData, meta interf
 		SpaceGUID: spaceGUID,
 	}
 
-	srOff := meta.(ClientSession).CloudFoundryServiceOfferingClient()
+	srOff, _ := meta.(ClientSession).CloudFoundryServiceOfferingClient()
 	serviceOff, err := srOff.FindByLabel(serviceName)
 	if err != nil {
 		return fmt.Errorf("Error retrieving service offering: %s", err)
 	}
 
-	srPlan := meta.(ClientSession).CloudFoundryServicePlanClient()
+	srPlan, _ := meta.(ClientSession).CloudFoundryServicePlanClient()
 	servicePlan, err := srPlan.FindPlanInServiceOffering(serviceOff.GUID, plan)
 	if err != nil {
 		return fmt.Errorf("Error retrieving plan: %s", err)
@@ -117,9 +120,12 @@ func resourceIBMCloudCfServiceInstanceCreate(d *schema.ResourceData, meta interf
 }
 
 func resourceIBMCloudCfServiceInstanceRead(d *schema.ResourceData, meta interface{}) error {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceInstanceClient()
-	planClient := meta.(ClientSession).CloudFoundryServicePlanClient()
-	svcOffClient := meta.(ClientSession).CloudFoundryServiceOfferingClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	if err != nil {
+		return err
+	}
+	planClient, _ := meta.(ClientSession).CloudFoundryServicePlanClient()
+	svcOffClient, _ := meta.(ClientSession).CloudFoundryServiceOfferingClient()
 
 	serviceGUID := d.Id()
 
@@ -150,7 +156,10 @@ func resourceIBMCloudCfServiceInstanceRead(d *schema.ResourceData, meta interfac
 }
 
 func resourceIBMCloudCfServiceInstanceUpdate(d *schema.ResourceData, meta interface{}) error {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	if err != nil {
+		return err
+	}
 
 	serviceGUID := d.Id()
 
@@ -162,13 +171,13 @@ func resourceIBMCloudCfServiceInstanceUpdate(d *schema.ResourceData, meta interf
 	if d.HasChange("plan") {
 		plan := d.Get("plan").(string)
 		service := d.Get("service").(string)
-		srOff := meta.(ClientSession).CloudFoundryServiceOfferingClient()
+		srOff, _ := meta.(ClientSession).CloudFoundryServiceOfferingClient()
 		serviceOff, err := srOff.FindByLabel(service)
 		if err != nil {
 			return fmt.Errorf("Error retrieving service offering: %s", err)
 		}
 
-		srPlan := meta.(ClientSession).CloudFoundryServicePlanClient()
+		srPlan, _ := meta.(ClientSession).CloudFoundryServicePlanClient()
 		servicePlan, err := srPlan.FindPlanInServiceOffering(serviceOff.GUID, plan)
 		if err != nil {
 			return fmt.Errorf("Error retrieving plan: %s", err)
@@ -186,7 +195,7 @@ func resourceIBMCloudCfServiceInstanceUpdate(d *schema.ResourceData, meta interf
 		updateReq.Tags = &tags
 	}
 
-	_, err := serviceClient.Update(serviceGUID, updateReq)
+	_, err = serviceClient.Update(serviceGUID, updateReq)
 	if err != nil {
 		return fmt.Errorf("Error updating service: %s", err)
 	}
@@ -195,11 +204,14 @@ func resourceIBMCloudCfServiceInstanceUpdate(d *schema.ResourceData, meta interf
 }
 
 func resourceIBMCloudCfServiceInstanceDelete(d *schema.ResourceData, meta interface{}) error {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	if err != nil {
+		return err
+	}
 
 	id := d.Id()
 
-	err := serviceClient.Delete(id)
+	err = serviceClient.Delete(id)
 	if err != nil {
 		return fmt.Errorf("Error deleting service: %s", err)
 	}
@@ -209,7 +221,10 @@ func resourceIBMCloudCfServiceInstanceDelete(d *schema.ResourceData, meta interf
 	return nil
 }
 func resourceIBMCloudCfServiceInstanceExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	serviceClient := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	serviceClient, err := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	if err != nil {
+		return false, err
+	}
 	serviceGUID := d.Id()
 
 	service, err := serviceClient.Get(serviceGUID)
