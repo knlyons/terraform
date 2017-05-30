@@ -36,7 +36,7 @@ func resourceIBMCloudCfServiceInstance() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				ForceNew:    true,
-				Description: "The name of the service",
+				Description: "The name of the service offering like cleardb, cloudantNOSQLDb etc",
 			},
 
 			"credentials": {
@@ -92,7 +92,7 @@ func resourceIBMCloudCfServiceInstanceCreate(d *schema.ResourceData, meta interf
 	}
 
 	srPlan := meta.(ClientSession).CloudFoundryServicePlanClient()
-	servicePlan, err := srPlan.GetServicePlan(serviceOff.GUID, plan)
+	servicePlan, err := srPlan.FindPlanInServiceOffering(serviceOff.GUID, plan)
 	if err != nil {
 		return fmt.Errorf("Error retrieving plan: %s", err)
 	}
@@ -118,6 +118,9 @@ func resourceIBMCloudCfServiceInstanceCreate(d *schema.ResourceData, meta interf
 
 func resourceIBMCloudCfServiceInstanceRead(d *schema.ResourceData, meta interface{}) error {
 	serviceClient := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	planClient := meta.(ClientSession).CloudFoundryServicePlanClient()
+	svcOffClient := meta.(ClientSession).CloudFoundryServiceOfferingClient()
+
 	serviceGUID := d.Id()
 
 	service, err := serviceClient.Get(serviceGUID)
@@ -125,9 +128,23 @@ func resourceIBMCloudCfServiceInstanceRead(d *schema.ResourceData, meta interfac
 		return fmt.Errorf("Error retrieving service: %s", err)
 	}
 
-	d.Set("service_plan_guid", service.Entity.ServicePlanGUID)
+	servicePlanGUID := service.Entity.ServicePlanGUID
+	d.Set("service_plan_guid", servicePlanGUID)
 	d.Set("credentials", service.Entity.Credentials)
 	d.Set("tags", service.Entity.Tags)
+	d.Set("name", service.Entity.Name)
+
+	p, err := planClient.Get(servicePlanGUID)
+	if err != nil {
+		return err
+	}
+	d.Set("plan", p.Entity.Name)
+
+	svcOff, err := svcOffClient.Get(p.Entity.ServiceGUID)
+	if err != nil {
+		return err
+	}
+	d.Set("service", svcOff.Entity.Label)
 
 	return nil
 }
@@ -152,7 +169,7 @@ func resourceIBMCloudCfServiceInstanceUpdate(d *schema.ResourceData, meta interf
 		}
 
 		srPlan := meta.(ClientSession).CloudFoundryServicePlanClient()
-		servicePlan, err := srPlan.GetServicePlan(serviceOff.GUID, plan)
+		servicePlan, err := srPlan.FindPlanInServiceOffering(serviceOff.GUID, plan)
 		if err != nil {
 			return fmt.Errorf("Error retrieving plan: %s", err)
 		}

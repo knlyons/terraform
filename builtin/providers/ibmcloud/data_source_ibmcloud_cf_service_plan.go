@@ -38,7 +38,7 @@ func dataSourceIBMCloudCfServicePlanRead(d *schema.ResourceData, meta interface{
 	srPlan := meta.(ClientSession).CloudFoundryServicePlanClient()
 	plan := d.Get("plan").(string)
 
-	servicePlan, err := srPlan.GetServicePlan(serviceOff.GUID, plan)
+	servicePlan, err := srPlan.FindPlanInServiceOffering(serviceOff.GUID, plan)
 	if err != nil {
 		return fmt.Errorf("Error retrieving plan: %s", err)
 	}

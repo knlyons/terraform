@@ -56,7 +56,7 @@ func TestAccIBMCloudCFServiceInstance_Basic(t *testing.T) {
 				Config: testAccCheckIBMCloudCFServiceInstance_newServiceType(updateName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("ibmcloud_cf_service_instance.service", "name", updateName),
-					resource.TestCheckResourceAttr("ibmcloud_cf_service_instance.service", "service", "cloudantNOSQLDB"),
+					resource.TestCheckResourceAttr("ibmcloud_cf_service_instance.service", "service", "cloudantNoSQLDB"),
 					resource.TestCheckResourceAttr("ibmcloud_cf_service_instance.service", "plan", "Lite"),
 					resource.TestCheckResourceAttr("ibmcloud_cf_service_instance.service", "tags.#", "1"),
 				),
@@ -168,7 +168,7 @@ func testAccCheckIBMCloudCFServiceInstance_newServiceType(updateName string) str
 		resource "ibmcloud_cf_service_instance" "service" {
 			name              = "%s"
 			space_guid        = "${data.ibmcloud_cf_space.spacedata.id}"
-			service           = "cloudantNOSQLDB"
+			service           = "cloudantNoSQLDB"
 			plan              = "Lite"
 			tags               = ["cluster-service"]
 		}
