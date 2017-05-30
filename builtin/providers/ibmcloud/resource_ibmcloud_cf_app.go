@@ -78,7 +78,7 @@ func resourceIBMCloudCfApp() *schema.Resource {
 			"app_path": {
 				Description: "Define the  path of the zip file of the application.",
 				Type:        schema.TypeString,
-				Optional:    true,
+				Required:    true,
 			},
 			"app_version": {
 				Description: "Version of the application",

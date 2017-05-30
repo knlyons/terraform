@@ -42,10 +42,11 @@ If space quotas are defined you can get them by `bluemix cf space-quota <space-q
   * A Git URL pointing to a buildpack. Example - https://github.com/cloudfoundry/nodejs-buildpack.git
   * Name of an installed buildpack. Example - `go_buildpack`
 * `environment_json` - (Optional, map) Key/value pairs of all the environment variables to run in your application. Does not include any system or service variables.
-* `route_guid` - (Optional, set) Define the route guids which should be bound to the application.
+* `command` - (Optional, string) The initial command for the app.
+* `route_guid` - (Optional, set) Define the route guids which should be bound to the application.Route should be in the same space as application.
 * `service_instance_guid` - (Optional, set) Define the service instance guids that should be bound to this application.
 * `wait_time_minutes` - (Optional, int) Define timeout to wait for the application to start.
-* `app_path` - (Optional, string) Define the path to the zip file of the application. The zip must contain all the application files directly within it and not inside some top-level folder. Typically you should go to the directory where your application files reside and issue `zip -r myapplication.zip *`.
+* `app_path` - (Required, string) Define the path to the zip file of the application. The zip must contain all the application files directly within it and not inside some top-level folder. Typically you should go to the directory where your application files reside and issue `zip -r myapplication.zip *`.
 * `app_version`	 - (Optional, string) Version of the application. If the application content in the file specified by _app_path_ changes then terraform can't detect that. So you should either change the application zip file name to let terraform know your zip content has changed or you can use this attribute to let the provider know that without changing the _app_path_
 
 ## Attributes Reference
