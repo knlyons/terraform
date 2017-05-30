@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/IBM-Bluemix/bluemix-go/helpers"
 	"github.com/hashicorp/terraform/helper/schema"
+	homedir "github.com/mitchellh/go-homedir"
 )
 
 func validateServiceTags(v interface{}, k string) (ws []string, errors []error) {
@@ -97,6 +99,22 @@ func validateAppInstance(v interface{}, k string) (ws []string, errors []error) 
 		errors = append(errors, fmt.Errorf(
 			"%q (%q) must be greater than 0", k, instances))
 	}
+	return
+
+}
+
+func validateAppZipPath(v interface{}, k string) (ws []string, errors []error) {
+	path := v.(string)
+	applicationZip, err := homedir.Expand(path)
+	if err != nil {
+		errors = append(errors, fmt.Errorf(
+			"%q (%q) home directory in the given path couldn't be expanded", k, path))
+	}
+	if !helpers.FileExists(applicationZip) {
+		errors = append(errors, fmt.Errorf(
+			"%q (%q) doesn't exist", k, path))
+	}
+
 	return
 
 }

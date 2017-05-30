@@ -76,9 +76,10 @@ func resourceIBMCloudCfApp() *schema.Resource {
 				Set:         schema.HashString,
 			},
 			"app_path": {
-				Description: "Define the  path of the zip file of the application.",
-				Type:        schema.TypeString,
-				Required:    true,
+				Description:  "Define the  path of the zip file of the application.",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validateAppZipPath,
 			},
 			"app_version": {
 				Description: "Version of the application",
@@ -174,18 +175,16 @@ func resourceIBMCloudCfAppCreate(d *schema.ResourceData, meta interface{}) error
 			}
 		}
 	}
-
-	if appPath, ok := d.GetOk("app_path"); ok {
-		log.Println("[INFO] Upload the app bits to the cloud foundary application")
-		appZipLoc, err := homedir.Expand(appPath.(string))
-		if err != nil {
-			return err
-		}
-		_, err = appClient.Upload(appGUID, appZipLoc)
-		if err != nil {
-			return fmt.Errorf("Error uploading app bits: %s", err)
-		}
+	log.Println("[INFO] Upload the app bits to the cloud foundary application")
+	applicationZip, err := homedir.Expand(d.Get("app_path").(string))
+	if err != nil {
+		return err
 	}
+	_, err = appClient.Upload(appGUID, applicationZip)
+	if err != nil {
+		return fmt.Errorf("Error uploading app bits: %s", err)
+	}
+
 	err = restartApp(appGUID, d, meta)
 	if err != nil {
 		return err

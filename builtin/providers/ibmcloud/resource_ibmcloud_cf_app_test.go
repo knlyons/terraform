@@ -2,6 +2,7 @@ package ibmcloud
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/IBM-Bluemix/bluemix-go/api/cf/cfv2"
@@ -9,6 +10,22 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 )
+
+func TestAccIBMCloudCFApp_Invalid_Application_Path(t *testing.T) {
+	name := fmt.Sprintf("terraform_%d", acctest.RandInt())
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckIBMCloudCFAppDestroy,
+		Steps: []resource.TestStep{
+
+			resource.TestStep{
+				Config:      testAccCheckIBMCloudCFAppInvalidPath(name),
+				ExpectError: regexp.MustCompile(`app_path`),
+			},
+		},
+	})
+}
 
 func TestAccIBMCloudCFApp_Basic(t *testing.T) {
 	var conf cfv2.AppFields
@@ -190,6 +207,23 @@ func testAccCheckIBMCloudCFAppExists(n string, obj *cfv2.AppFields) resource.Tes
 		*obj = *app
 		return nil
 	}
+}
+
+func testAccCheckIBMCloudCFAppInvalidPath(name string) string {
+	return fmt.Sprintf(`
+
+data "ibmcloud_cf_space" "space" {
+  org    = "%s"
+  space  = "%s"
+}
+resource "ibmcloud_cf_app" "app" {
+	name = "%s"
+	space_guid = "${data.ibmcloud_cf_space.space.id}"
+	app_path = ""
+	wait_time_minutes = 90
+	buildpack = "sdk-for-nodejs"
+}`, cfOrganization, cfSpace, name)
+
 }
 
 func testAccCheckIBMCloudCFAppCreate(name string) string {
