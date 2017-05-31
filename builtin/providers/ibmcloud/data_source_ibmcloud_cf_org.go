@@ -21,14 +21,13 @@ func dataSourceIBMCloudCfOrg() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfOrgRead(d *schema.ResourceData, meta interface{}) error {
-	or, err := meta.(ClientSession).CloudFoundryOrgClient()
+	cfAPI, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
-
+	orgAPI := cfAPI.Organizations()
 	org := d.Get("org").(string)
-
-	orgFields, err := or.FindByName(org)
+	orgFields, err := orgAPI.FindByName(org)
 	if err != nil {
 		return fmt.Errorf("Error retrieving organisation: %s", err)
 	}

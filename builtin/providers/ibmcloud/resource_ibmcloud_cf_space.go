@@ -42,11 +42,10 @@ func resourceIBMCloudCfSpace() *schema.Resource {
 }
 
 func resourceIBMCloudCfSpaceCreate(d *schema.ResourceData, meta interface{}) error {
-	spaceClient, err := meta.(ClientSession).CloudFoundrySpaceClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
-	orgClient, _ := meta.(ClientSession).CloudFoundryOrgClient()
 	org := d.Get("org").(string)
 	name := d.Get("name").(string)
 
@@ -54,22 +53,21 @@ func resourceIBMCloudCfSpaceCreate(d *schema.ResourceData, meta interface{}) err
 		Name: name,
 	}
 
-	orgFields, err := orgClient.FindByName(org)
+	orgFields, err := cfClient.Organizations().FindByName(org)
 	if err != nil {
 		return fmt.Errorf("Error retrieving org: %s", err)
 	}
 	req.OrgGUID = orgFields.GUID
 
 	if spaceQuota, ok := d.GetOk("space_quota"); ok {
-		spaceQuotaClient, _ := meta.(ClientSession).CloudFoundrySpaceQuotaClient()
-		quota, err := spaceQuotaClient.FindByName(spaceQuota.(string), orgFields.GUID)
+		quota, err := cfClient.SpaceQuotas().FindByName(spaceQuota.(string), orgFields.GUID)
 		if err != nil {
 			return fmt.Errorf("Error retrieving space quota: %s", err)
 		}
 		req.SpaceQuotaGUID = quota.GUID
 	}
 
-	space, err := spaceClient.Create(req)
+	space, err := cfClient.Spaces().Create(req)
 	if err != nil {
 		return fmt.Errorf("Error creating space: %s", err)
 	}
@@ -79,13 +77,13 @@ func resourceIBMCloudCfSpaceCreate(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceIBMCloudCfSpaceRead(d *schema.ResourceData, meta interface{}) error {
-	spaceClient, err := meta.(ClientSession).CloudFoundrySpaceClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
 	spaceGUID := d.Id()
 
-	_, err = spaceClient.Get(spaceGUID)
+	_, err = cfClient.Spaces().Get(spaceGUID)
 	if err != nil {
 		return fmt.Errorf("Error retrieving space: %s", err)
 	}
@@ -93,7 +91,7 @@ func resourceIBMCloudCfSpaceRead(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceIBMCloudCfSpaceUpdate(d *schema.ResourceData, meta interface{}) error {
-	spaceClient, err := meta.(ClientSession).CloudFoundrySpaceClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
@@ -104,7 +102,7 @@ func resourceIBMCloudCfSpaceUpdate(d *schema.ResourceData, meta interface{}) err
 		req.Name = helpers.String(d.Get("name").(string))
 	}
 
-	_, err = spaceClient.Update(id, req)
+	_, err = cfClient.Spaces().Update(id, req)
 	if err != nil {
 		return fmt.Errorf("Error updating space: %s", err)
 	}
@@ -113,13 +111,13 @@ func resourceIBMCloudCfSpaceUpdate(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceIBMCloudCfSpaceDelete(d *schema.ResourceData, meta interface{}) error {
-	spaceClient, err := meta.(ClientSession).CloudFoundrySpaceClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
 	id := d.Id()
 
-	err = spaceClient.Delete(id)
+	err = cfClient.Spaces().Delete(id)
 	if err != nil {
 		return fmt.Errorf("Error deleting space: %s", err)
 	}
@@ -129,13 +127,13 @@ func resourceIBMCloudCfSpaceDelete(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceIBMCloudCfSpaceExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	spaceClient, err := meta.(ClientSession).CloudFoundrySpaceClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return false, err
 	}
 	id := d.Id()
 
-	space, err := spaceClient.Get(id)
+	space, err := cfClient.Spaces().Get(id)
 	if err != nil {
 		if apiErr, ok := err.(bmxerror.RequestFailure); ok {
 			if apiErr.StatusCode() == 404 {

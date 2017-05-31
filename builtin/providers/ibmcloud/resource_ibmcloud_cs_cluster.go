@@ -60,6 +60,7 @@ func resourceIBMCloudArmadaCluster() *schema.Resource {
 						"action": {
 							Type:         schema.TypeString,
 							Optional:     true,
+							Default:      "add",
 							ValidateFunc: validateAllowedStringValue([]string{"add", "reboot", "reload"}),
 						},
 					},
@@ -174,7 +175,7 @@ func resourceIBMCloudArmadaCluster() *schema.Resource {
 }
 
 func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{}) error {
-	clusterClient, err := meta.(ClientSession).ClusterClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
@@ -204,7 +205,7 @@ func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{
 
 	targetEnv := getClusterTargetHeader(d)
 
-	cls, err := clusterClient.Create(params, targetEnv)
+	cls, err := csClient.Clusters().Create(params, targetEnv)
 	if err != nil {
 		return err
 	}
@@ -218,17 +219,17 @@ func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{
 			"Error waiting for workers of cluster (%s) to become ready: %s", d.Id(), err)
 	}
 
-	subnetClient, _ := meta.(ClientSession).ClusterSubnetClient()
+	subnetAPI := csClient.Subnets()
 	subnetIDs := d.Get("subnet_id").(*schema.Set)
 	for _, subnetID := range subnetIDs.List() {
 		if subnetID != "" {
-			err = subnetClient.AddSubnet(cls.ID, subnetID.(string), targetEnv)
+			err = subnetAPI.AddSubnet(cls.ID, subnetID.(string), targetEnv)
 			if err != nil {
 				return err
 			}
 		}
 	}
-	webhookClient, _ := meta.(ClientSession).ClusterWebHooksClient()
+	whkAPI := csClient.WebHooks()
 	for _, e := range webhooks {
 		pack := e.(map[string]interface{})
 		webhook := v1.WebHook{
@@ -237,13 +238,13 @@ func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{
 			URL:   pack["url"].(string),
 		}
 
-		webhookClient.Add(cls.ID, webhook, targetEnv)
+		whkAPI.Add(cls.ID, webhook, targetEnv)
 
 	}
 
 	workersInfo := []map[string]string{}
-	workerClient, _ := meta.(ClientSession).ClusterWorkerClient()
-	workerFields, err := workerClient.List(cls.ID, targetEnv)
+	wrkAPI := csClient.Workers()
+	workerFields, err := wrkAPI.List(cls.ID, targetEnv)
 	if err != nil {
 		return err
 	}
@@ -268,16 +269,15 @@ func resourceIBMCloudArmadaClusterCreate(d *schema.ResourceData, meta interface{
 }
 
 func resourceIBMCloudArmadaClusterRead(d *schema.ResourceData, meta interface{}) error {
-
-	targetEnv := getClusterTargetHeader(d)
-
-	client, err := meta.(ClientSession).ClusterClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
 
+	targetEnv := getClusterTargetHeader(d)
+
 	clusterID := d.Id()
-	cls, err := client.Find(clusterID, targetEnv)
+	cls, err := csClient.Clusters().Find(clusterID, targetEnv)
 	if err != nil {
 		return fmt.Errorf("Error retrieving armada cluster: %s", err)
 	}
@@ -292,15 +292,16 @@ func resourceIBMCloudArmadaClusterRead(d *schema.ResourceData, meta interface{})
 }
 
 func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{}) error {
-
-	targetEnv := getClusterTargetHeader(d)
-
-	subnetClient, err := meta.(ClientSession).ClusterSubnetClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
-	webhookClient, _ := meta.(ClientSession).ClusterWebHooksClient()
-	workerClient, _ := meta.(ClientSession).ClusterWorkerClient()
+
+	targetEnv := getClusterTargetHeader(d)
+
+	subnetAPI := csClient.Subnets()
+	whkAPI := csClient.WebHooks()
+	wrkAPI := csClient.Workers()
 
 	clusterID := d.Id()
 	workersInfo := []map[string]string{}
@@ -319,7 +320,7 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 						params := v1.WorkerParam{
 							Action: newPack["action"].(string),
 						}
-						workerClient.Update(clusterID, oldPack["id"].(string), params, targetEnv)
+						wrkAPI.Update(clusterID, oldPack["id"].(string), params, targetEnv)
 						var worker = map[string]string{
 							"name":   newPack["name"].(string),
 							"id":     newPack["id"].(string),
@@ -341,7 +342,7 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 					Action: "add",
 					Count:  1,
 				}
-				err := workerClient.Add(clusterID, params, targetEnv)
+				err := wrkAPI.Add(clusterID, params, targetEnv)
 				if err != nil {
 					return fmt.Errorf("Error adding worker to cluster")
 				}
@@ -365,7 +366,7 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 				exists = exists || (strings.Compare(oldPack["name"].(string), newPack["name"].(string)) == 0)
 			}
 			if !exists {
-				workerClient.Delete(clusterID, oldPack["id"].(string), targetEnv)
+				wrkAPI.Delete(clusterID, oldPack["id"].(string), targetEnv)
 			}
 
 		}
@@ -396,7 +397,7 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 					URL:   newPack["url"].(string),
 				}
 
-				webhookClient.Add(clusterID, webhook, targetEnv)
+				whkAPI.Add(clusterID, webhook, targetEnv)
 			}
 		}
 	}
@@ -413,7 +414,7 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 				}
 			}
 			if !exists {
-				err := subnetClient.AddSubnet(clusterID, nS.(string), targetEnv)
+				err := subnetAPI.AddSubnet(clusterID, nS.(string), targetEnv)
 				if err != nil {
 					return err
 				}
@@ -425,11 +426,11 @@ func resourceIBMCloudArmadaClusterUpdate(d *schema.ResourceData, meta interface{
 
 func getID(d *schema.ResourceData, meta interface{}, clusterID string, oldWorkers []interface{}, workerInfo []map[string]string) (string, error) {
 	targetEnv := getClusterTargetHeader(d)
-	workerClient, err := meta.(ClientSession).ClusterWorkerClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return "", err
 	}
-	workerFields, err := workerClient.List(clusterID, targetEnv)
+	workerFields, err := csClient.Workers().List(clusterID, targetEnv)
 	if err != nil {
 		return "", err
 	}
@@ -457,12 +458,12 @@ func getID(d *schema.ResourceData, meta interface{}, clusterID string, oldWorker
 
 func resourceIBMCloudArmadaClusterDelete(d *schema.ResourceData, meta interface{}) error {
 	targetEnv := getClusterTargetHeader(d)
-	client, err := meta.(ClientSession).ClusterClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
 	clusterID := d.Id()
-	err = client.Delete(clusterID, targetEnv)
+	err = csClient.Clusters().Delete(clusterID, targetEnv)
 	if err != nil {
 		return fmt.Errorf("Error deleting cluster: %s", err)
 	}
@@ -471,15 +472,17 @@ func resourceIBMCloudArmadaClusterDelete(d *schema.ResourceData, meta interface{
 
 // WaitForClusterAvailable Waits for cluster creation
 func WaitForClusterAvailable(d *schema.ResourceData, meta interface{}, target *v1.ClusterTargetHeader) (interface{}, error) {
+	csClient, err := meta.(ClientSession).CSAPI()
+	if err != nil {
+		return nil, err
+	}
 	log.Printf("Waiting for cluster (%s) to be available.", d.Id())
 	id := d.Id()
-
-	client, _ := meta.(ClientSession).ClusterClient()
 
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"retry", clusterProvisioning},
 		Target:     []string{clusterNormal},
-		Refresh:    clusterStateRefreshFunc(client, id, d, target),
+		Refresh:    clusterStateRefreshFunc(csClient.Clusters(), id, d, target),
 		Timeout:    time.Duration(d.Get("wait_time_minutes").(int)) * time.Minute,
 		Delay:      10 * time.Second,
 		MinTimeout: 10 * time.Second,
@@ -507,14 +510,17 @@ func clusterStateRefreshFunc(client v1.Clusters, instanceID string, d *schema.Re
 
 // WaitForWorkerAvailable Waits for worker creation
 func WaitForWorkerAvailable(d *schema.ResourceData, meta interface{}, target *v1.ClusterTargetHeader) (interface{}, error) {
+	csClient, err := meta.(ClientSession).CSAPI()
+	if err != nil {
+		return nil, err
+	}
 	log.Printf("Waiting for worker of the cluster (%s) to be available.", d.Id())
 	id := d.Id()
 
-	workerClient, _ := meta.(ClientSession).ClusterWorkerClient()
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"retry", workerProvisioning},
 		Target:     []string{workerNormal},
-		Refresh:    workerStateRefreshFunc(workerClient, id, d, target),
+		Refresh:    workerStateRefreshFunc(csClient.Workers(), id, d, target),
 		Timeout:    time.Duration(d.Get("wait_time_minutes").(int)) * time.Minute,
 		Delay:      10 * time.Second,
 		MinTimeout: 10 * time.Second,
@@ -543,13 +549,16 @@ func workerStateRefreshFunc(client v1.Workers, instanceID string, d *schema.Reso
 }
 
 func resourceIBMCloudArmadaClusterExists(d *schema.ResourceData, meta interface{}) (bool, error) {
+	csClient, err := meta.(ClientSession).CSAPI()
+	if err != nil {
+		return false, err
+	}
 	targetEnv := getClusterTargetHeader(d)
-	client, err := meta.(ClientSession).ClusterClient()
 	if err != nil {
 		return false, err
 	}
 	clusterID := d.Id()
-	cls, err := client.Find(clusterID, targetEnv)
+	cls, err := csClient.Clusters().Find(clusterID, targetEnv)
 	if err != nil {
 		if apiErr, ok := err.(bmxerror.RequestFailure); ok {
 			if apiErr.StatusCode() == 404 {

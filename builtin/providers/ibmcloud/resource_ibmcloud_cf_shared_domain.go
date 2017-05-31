@@ -37,7 +37,7 @@ func resourceIBMCloudCfSharedDomain() *schema.Resource {
 }
 
 func resourceIBMCloudCfSharedDomainCreate(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func resourceIBMCloudCfSharedDomainCreate(d *schema.ResourceData, meta interface
 		RouterGroupGUID: routerGroupGUID,
 	}
 
-	shdomain, err := client.Create(params)
+	shdomain, err := cfClient.SharedDomains().Create(params)
 	if err != nil {
 		return fmt.Errorf("Error creating shared domain: %s", err)
 	}
@@ -60,13 +60,13 @@ func resourceIBMCloudCfSharedDomainCreate(d *schema.ResourceData, meta interface
 }
 
 func resourceIBMCloudCfSharedDomainRead(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
 	shdomainGUID := d.Id()
 
-	shdomain, err := client.Get(shdomainGUID)
+	shdomain, err := cfClient.SharedDomains().Get(shdomainGUID)
 	if err != nil {
 		return fmt.Errorf("Error retrieving shared domain: %s", err)
 	}
@@ -77,14 +77,14 @@ func resourceIBMCloudCfSharedDomainRead(d *schema.ResourceData, meta interface{}
 }
 
 func resourceIBMCloudCfSharedDomainDelete(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
 
 	shdomainGUID := d.Id()
 
-	err = client.Delete(shdomainGUID, true)
+	err = cfClient.SharedDomains().Delete(shdomainGUID, true)
 	if err != nil {
 		return fmt.Errorf("Error deleting shared domain: %s", err)
 	}
@@ -95,13 +95,13 @@ func resourceIBMCloudCfSharedDomainDelete(d *schema.ResourceData, meta interface
 }
 
 func resourceIBMCloudCfSharedDomainExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return false, err
 	}
 	shdomainGUID := d.Id()
 
-	shdomain, err := client.Get(shdomainGUID)
+	shdomain, err := cfClient.SharedDomains().Get(shdomainGUID)
 	if err != nil {
 		if apiErr, ok := err.(bmxerror.RequestFailure); ok {
 			if apiErr.StatusCode() == 404 {

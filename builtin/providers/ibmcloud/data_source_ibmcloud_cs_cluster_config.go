@@ -49,11 +49,11 @@ func dataSourceIBMCloudArmadaClusterConfig() *schema.Resource {
 }
 
 func dataSourceIBMCloudArmadaClusterConfigRead(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(ClientSession).ClusterClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
-
+	csAPI := csClient.Clusters()
 	name := d.Get("cluster_name_id").(string)
 
 	targetEnv := getClusterTargetHeader(d)
@@ -66,7 +66,7 @@ func dataSourceIBMCloudArmadaClusterConfigRead(d *schema.ResourceData, meta inte
 
 	}
 
-	configPath, err := client.GetClusterConfig(name, configDir, targetEnv)
+	configPath, err := csAPI.GetClusterConfig(name, configDir, targetEnv)
 	if err != nil {
 		return fmt.Errorf("Error downloading the cluster config [%s]: %s", name, err)
 	}

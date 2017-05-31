@@ -62,15 +62,16 @@ func dataSourceIBMCloudCsWorker() *schema.Resource {
 }
 
 func dataSourceIBMCloudCsWorkerRead(d *schema.ResourceData, meta interface{}) error {
-	workerClient, err := meta.(ClientSession).ClusterWorkerClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
 
+	wrkAPI := csClient.Workers()
 	workerID := d.Get("worker_id").(string)
 	targetEnv := getClusterTargetHeader(d)
 
-	workerFields, err := workerClient.Get(workerID, targetEnv)
+	workerFields, err := wrkAPI.Get(workerID, targetEnv)
 	if err != nil {
 		return fmt.Errorf("Error retrieving worker: %s", err)
 	}

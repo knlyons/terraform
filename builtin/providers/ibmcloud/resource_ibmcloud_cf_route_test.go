@@ -51,7 +51,10 @@ func TestAccIBMCloudCFRoute_Basic(t *testing.T) {
 }
 
 func testAccCheckIBMCloudCFRouteDestroy(s *terraform.State) error {
-	routeRepo := testAccProvider.Meta().(ClientSession).CloudFoundryRouteClient()
+	cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cf_route" {
@@ -61,7 +64,7 @@ func testAccCheckIBMCloudCFRouteDestroy(s *terraform.State) error {
 		routeGuid := rs.Primary.ID
 
 		// Try to find the key
-		_, err := routeRepo.Get(routeGuid)
+		_, err := cfClient.Routes().Get(routeGuid)
 
 		if err != nil && !strings.Contains(err.Error(), "404") {
 			return fmt.Errorf("Error waiting for CF route (%s) to be destroyed: %s", rs.Primary.ID, err)
@@ -79,10 +82,13 @@ func testAccCheckIBMCloudCFRouteExists(n string, obj *cfv2.RouteFields) resource
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		routeRepo := testAccProvider.Meta().(ClientSession).CloudFoundryRouteClient()
+		cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+		if err != nil {
+			return err
+		}
 		routeGuid := rs.Primary.ID
 
-		route, err := routeRepo.Get(routeGuid)
+		route, err := cfClient.Routes().Get(routeGuid)
 		if err != nil {
 			return err
 		}

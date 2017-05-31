@@ -33,17 +33,18 @@ func dataSourceIBMCloudCfServiceInstance() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfServiceInstanceRead(d *schema.ResourceData, meta interface{}) error {
-	sr, err := meta.(ClientSession).CloudFoundryServiceInstanceClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
-		return nil
+		return err
 	}
+	siAPI := cfClient.ServiceInstances()
 	name := d.Get("name").(string)
-	inst, err := sr.FindByName(name)
+	inst, err := siAPI.FindByName(name)
 	if err != nil {
 		return err
 	}
 
-	serviceInstance, err := sr.Get(inst.GUID)
+	serviceInstance, err := siAPI.Get(inst.GUID)
 	if err != nil {
 		return fmt.Errorf("Error retrieving service: %s", err)
 	}

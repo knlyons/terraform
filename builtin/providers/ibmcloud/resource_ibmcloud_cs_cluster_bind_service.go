@@ -76,7 +76,7 @@ func getClusterTargetHeader(d *schema.ResourceData) *v1.ClusterTargetHeader {
 }
 
 func resourceIBMCloudClusterBindServiceCreate(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(ClientSession).ClusterClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func resourceIBMCloudClusterBindServiceCreate(d *schema.ResourceData, meta inter
 	}
 
 	targetEnv := getClusterTargetHeader(d)
-	bindResp, err := client.BindService(bindService, targetEnv)
+	bindResp, err := csClient.Clusters().BindService(bindService, targetEnv)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func resourceIBMCloudClusterBindServiceRead(d *schema.ResourceData, meta interfa
 }
 
 func resourceIBMCloudClusterBindServiceDelete(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(ClientSession).ClusterClient()
+	csClient, err := meta.(ClientSession).CSAPI()
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func resourceIBMCloudClusterBindServiceDelete(d *schema.ResourceData, meta inter
 	serviceInstanceNameID := d.Get("service_instance_name_id").(string)
 	targetEnv := getClusterTargetHeader(d)
 
-	err = client.UnBindService(clusterID, namespace, serviceInstanceNameID, targetEnv)
+	err = csClient.Clusters().UnBindService(clusterID, namespace, serviceInstanceNameID, targetEnv)
 	if err != nil {
 		return fmt.Errorf("Error unbinding service: %s", err)
 	}

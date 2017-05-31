@@ -46,10 +46,11 @@ func dataSourceIBMCloudCfRoute() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfRouteRead(d *schema.ResourceData, meta interface{}) error {
-	spaceClient, err := meta.(ClientSession).CloudFoundrySpaceClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
+	spaceAPI := cfClient.Spaces()
 	spaceGUID := d.Get("space_guid").(string)
 	domainGUID := d.Get("domain_guid").(string)
 
@@ -68,7 +69,7 @@ func dataSourceIBMCloudCfRouteRead(d *schema.ResourceData, meta interface{}) err
 	if path, ok := d.GetOk("path"); ok {
 		params.Path = helpers.String(path.(string))
 	}
-	route, err := spaceClient.ListRoutes(spaceGUID, params)
+	route, err := spaceAPI.ListRoutes(spaceGUID, params)
 	if err != nil {
 		return fmt.Errorf("Error retrieving route: %s", err)
 	}

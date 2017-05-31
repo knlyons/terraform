@@ -37,7 +37,7 @@ func resourceIBMCloudCfPrivateDomain() *schema.Resource {
 }
 
 func resourceIBMCloudCfPrivateDomainCreate(d *schema.ResourceData, meta interface{}) error {
-	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func resourceIBMCloudCfPrivateDomainCreate(d *schema.ResourceData, meta interfac
 		OrgGUID: orgGUID,
 	}
 
-	prdomain, err := prdomainClient.Create(params)
+	prdomain, err := cfClient.PrivateDomains().Create(params)
 	if err != nil {
 		return fmt.Errorf("Error creating private domain: %s", err)
 	}
@@ -60,13 +60,13 @@ func resourceIBMCloudCfPrivateDomainCreate(d *schema.ResourceData, meta interfac
 }
 
 func resourceIBMCloudCfPrivateDomainRead(d *schema.ResourceData, meta interface{}) error {
-	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
 	prdomainGUID := d.Id()
 
-	prdomain, err := prdomainClient.Get(prdomainGUID)
+	prdomain, err := cfClient.PrivateDomains().Get(prdomainGUID)
 	if err != nil {
 		return fmt.Errorf("Error retrieving private domain: %s", err)
 	}
@@ -77,14 +77,14 @@ func resourceIBMCloudCfPrivateDomainRead(d *schema.ResourceData, meta interface{
 }
 
 func resourceIBMCloudCfPrivateDomainDelete(d *schema.ResourceData, meta interface{}) error {
-	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
 
 	prdomainGUID := d.Id()
 
-	err = prdomainClient.Delete(prdomainGUID, true)
+	err = cfClient.PrivateDomains().Delete(prdomainGUID, true)
 	if err != nil {
 		return fmt.Errorf("Error deleting private domain: %s", err)
 	}
@@ -95,13 +95,13 @@ func resourceIBMCloudCfPrivateDomainDelete(d *schema.ResourceData, meta interfac
 }
 
 func resourceIBMCloudCfPrivateDomainExists(d *schema.ResourceData, meta interface{}) (bool, error) {
-	prdomainClient, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return false, err
 	}
 	prdomainGUID := d.Id()
 
-	prdomain, err := prdomainClient.Get(prdomainGUID)
+	prdomain, err := cfClient.PrivateDomains().Get(prdomainGUID)
 	if err != nil {
 		if apiErr, ok := err.(bmxerror.RequestFailure); ok {
 			if apiErr.StatusCode() == 404 {

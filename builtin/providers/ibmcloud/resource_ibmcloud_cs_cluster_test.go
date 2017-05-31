@@ -38,7 +38,10 @@ func TestAccIBMCloudCluster_basic(t *testing.T) {
 }
 
 func testAccCheckIBMCloudCSClusterDestroy(s *terraform.State) error {
-	client := testAccProvider.Meta().(ClientSession).ClusterClient()
+	csClient, err := testAccProvider.Meta().(ClientSession).CSAPI()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cs_cluster" {
@@ -47,7 +50,7 @@ func testAccCheckIBMCloudCSClusterDestroy(s *terraform.State) error {
 
 		targetEnv := getClusterTargetHeaderTestACC()
 		// Try to find the key
-		_, err := client.Find(rs.Primary.ID, targetEnv)
+		_, err := csClient.Clusters().Find(rs.Primary.ID, targetEnv)
 
 		if err != nil && !strings.Contains(err.Error(), "404") {
 			return fmt.Errorf("Error waiting for cluster (%s) to be destroyed: %s", rs.Primary.ID, err)
@@ -131,8 +134,6 @@ resource "ibmcloud_cs_cluster" "testacc_cluster" {
 
   workers = [{
     name = "worker1"
-
-    action = "add"
   }]
 
   machine_type    = "free"

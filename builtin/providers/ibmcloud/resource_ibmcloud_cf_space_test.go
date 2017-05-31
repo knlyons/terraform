@@ -51,10 +51,13 @@ func testAccCheckIBMCloudCFSpaceExists(n string, obj *cfv2.SpaceFields) resource
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		spaceClient := testAccProvider.Meta().(ClientSession).CloudFoundrySpaceClient()
+		cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+		if err != nil {
+			return err
+		}
 		spaceGUID := rs.Primary.ID
 
-		space, err := spaceClient.Get(spaceGUID)
+		space, err := cfClient.Spaces().Get(spaceGUID)
 		if err != nil {
 			return err
 		}
@@ -65,7 +68,10 @@ func testAccCheckIBMCloudCFSpaceExists(n string, obj *cfv2.SpaceFields) resource
 }
 
 func testAccCheckIBMCloudCFSpaceDestroy(s *terraform.State) error {
-	spaceClient := testAccProvider.Meta().(ClientSession).CloudFoundrySpaceClient()
+	cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cf_space" {
@@ -73,7 +79,7 @@ func testAccCheckIBMCloudCFSpaceDestroy(s *terraform.State) error {
 		}
 
 		spaceGUID := rs.Primary.ID
-		_, err := spaceClient.Get(spaceGUID)
+		_, err := cfClient.Spaces().Get(spaceGUID)
 
 		if err != nil {
 			if apierr, ok := err.(bmxerror.RequestFailure); ok && apierr.StatusCode() != 404 {

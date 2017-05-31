@@ -22,12 +22,12 @@ func dataSourceIBMCloudCfSharedDomain() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfSharedDomainRead(d *schema.ResourceData, meta interface{}) error {
-	client, err := meta.(ClientSession).CloudFoundrySharedDomainClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
 	domainName := d.Get("name").(string)
-	shdomain, err := client.FindByName(domainName)
+	shdomain, err := cfClient.SharedDomains().FindByName(domainName)
 	if err != nil {
 		return fmt.Errorf("Error retrieving shared domain: %s", err)
 	}

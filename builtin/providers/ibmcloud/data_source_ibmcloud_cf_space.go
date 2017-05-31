@@ -27,21 +27,21 @@ func dataSourceIBMCloudCfSpace() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfSpaceRead(d *schema.ResourceData, meta interface{}) error {
-	or, err := meta.(ClientSession).CloudFoundryOrgClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
-	sp, _ := meta.(ClientSession).CloudFoundrySpaceClient()
+	orgAPI := cfClient.Organizations()
+	spaceAPI := cfClient.Spaces()
 
 	space := d.Get("space").(string)
 	org := d.Get("org").(string)
 
-	orgFields, err := or.FindByName(org)
+	orgFields, err := orgAPI.FindByName(org)
 	if err != nil {
 		return fmt.Errorf("Error retrieving org: %s", err)
 	}
-
-	spaceFields, err := sp.FindByNameInOrg(orgFields.GUID, space)
+	spaceFields, err := spaceAPI.FindByNameInOrg(orgFields.GUID, space)
 	if err != nil {
 		return fmt.Errorf("Error retrieving space: %s", err)
 	}

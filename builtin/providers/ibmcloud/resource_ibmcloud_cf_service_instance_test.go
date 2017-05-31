@@ -66,8 +66,10 @@ func TestAccIBMCloudCFServiceInstance_Basic(t *testing.T) {
 }
 
 func testAccCheckIBMCloudCFServiceInstanceDestroy(s *terraform.State) error {
-	serviceRepo := testAccProvider.Meta().(ClientSession).CloudFoundryServiceInstanceClient()
-
+	cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+	if err != nil {
+		return err
+	}
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cf_service_instance" {
 			continue
@@ -76,7 +78,7 @@ func testAccCheckIBMCloudCFServiceInstanceDestroy(s *terraform.State) error {
 		serviceGuid := rs.Primary.ID
 
 		// Try to find the key
-		_, err := serviceRepo.Get(serviceGuid)
+		_, err := cfClient.ServiceInstances().Get(serviceGuid)
 
 		if err != nil && !strings.Contains(err.Error(), "404") {
 			return fmt.Errorf("Error waiting for CF service (%s) to be destroyed: %s", rs.Primary.ID, err)
@@ -94,10 +96,14 @@ func testAccCheckIBMCloudCFServiceInstanceExists(n string, obj *cfv2.ServiceInst
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		serviceRepo := testAccProvider.Meta().(ClientSession).CloudFoundryServiceInstanceClient()
+		cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+		if err != nil {
+			return err
+		}
 		serviceGuid := rs.Primary.ID
 
-		service, err := serviceRepo.Get(serviceGuid)
+		service, err := cfClient.ServiceInstances().Get(serviceGuid)
+
 		if err != nil {
 			return err
 		}

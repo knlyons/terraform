@@ -47,10 +47,13 @@ func testAccCheckIBMCloudCFPrivateDomainExists(n string, obj *cfv2.PrivateDomain
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		privateDomainRepo := testAccProvider.Meta().(ClientSession).CloudFoundryPrivateDomainClient()
+		cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+		if err != nil {
+			return err
+		}
 		privateDomainGUID := rs.Primary.ID
 
-		prdomain, err := privateDomainRepo.Get(privateDomainGUID)
+		prdomain, err := cfClient.PrivateDomains().Get(privateDomainGUID)
 		if err != nil {
 			return err
 		}
@@ -61,7 +64,10 @@ func testAccCheckIBMCloudCFPrivateDomainExists(n string, obj *cfv2.PrivateDomain
 }
 
 func testAccCheckIBMCloudCFPrivateDomainDestroy(s *terraform.State) error {
-	privateDomainRepo := testAccProvider.Meta().(ClientSession).CloudFoundryPrivateDomainClient()
+	cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cf_private_domain" {
@@ -71,7 +77,7 @@ func testAccCheckIBMCloudCFPrivateDomainDestroy(s *terraform.State) error {
 		privateDomainGUID := rs.Primary.ID
 
 		// Try to find the private domain
-		_, err := privateDomainRepo.Get(privateDomainGUID)
+		_, err := cfClient.PrivateDomains().Get(privateDomainGUID)
 
 		if err != nil && !strings.Contains(err.Error(), "404") {
 			return fmt.Errorf("Error waiting for CF private domain (%s) to be destroyed: %s", rs.Primary.ID, err)

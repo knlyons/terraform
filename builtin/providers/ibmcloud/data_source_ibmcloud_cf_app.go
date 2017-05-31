@@ -73,19 +73,18 @@ func dataSourceIBMCloudCfApp() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfAppRead(d *schema.ResourceData, meta interface{}) error {
-	appClient, err := meta.(ClientSession).CloudFoundryAppClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
-
+	appAPI := cfClient.Apps()
 	name := d.Get("name").(string)
 	spaceGUID := d.Get("space_guid").(string)
 
-	app, err := appClient.FindByName(spaceGUID, name)
+	app, err := appAPI.FindByName(spaceGUID, name)
 	if err != nil {
 		return err
 	}
-
 	d.SetId(app.GUID)
 	d.Set("memory", app.Memory)
 	d.Set("disk_quota", app.DiskQuota)
@@ -97,14 +96,14 @@ func dataSourceIBMCloudCfAppRead(d *schema.ResourceData, meta interface{}) error
 	d.Set("state", app.State)
 	d.Set("instances", app.Instances)
 
-	route, err := appClient.ListRoutes(app.GUID)
+	route, err := appAPI.ListRoutes(app.GUID)
 	if err != nil {
 		return err
 	}
 	if len(route) > 0 {
 		d.Set("route_guid", flattenRoute(route))
 	}
-	svcBindings, err := appClient.ListServiceBindings(app.GUID)
+	svcBindings, err := appAPI.ListServiceBindings(app.GUID)
 	if err != nil {
 		return err
 	}

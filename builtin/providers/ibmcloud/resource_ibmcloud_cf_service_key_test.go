@@ -42,10 +42,13 @@ func testAccCheckIBMCloudCFServiceKeyExists(n string, obj *cfv2.ServiceKeyFields
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		serviceRepo := testAccProvider.Meta().(ClientSession).CloudFoundryServiceKeyClient()
+		cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+		if err != nil {
+			return err
+		}
 		serviceKeyGuid := rs.Primary.ID
 
-		serviceKey, err := serviceRepo.Get(serviceKeyGuid)
+		serviceKey, err := cfClient.ServiceKeys().Get(serviceKeyGuid)
 		if err != nil {
 			return err
 		}
@@ -56,7 +59,10 @@ func testAccCheckIBMCloudCFServiceKeyExists(n string, obj *cfv2.ServiceKeyFields
 }
 
 func testAccCheckIBMCloudCFServiceKeyDestroy(s *terraform.State) error {
-	serviceKeyRepo := testAccProvider.Meta().(ClientSession).CloudFoundryServiceKeyClient()
+	cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cf_service_key" {
@@ -66,7 +72,7 @@ func testAccCheckIBMCloudCFServiceKeyDestroy(s *terraform.State) error {
 		serviceKeyGuid := rs.Primary.ID
 
 		// Try to find the key
-		_, err := serviceKeyRepo.Get(serviceKeyGuid)
+		_, err := cfClient.ServiceKeys().Get(serviceKeyGuid)
 
 		if err != nil && !strings.Contains(err.Error(), "404") {
 			return fmt.Errorf("Error waiting for CF service key (%s) to be destroyed: %s", rs.Primary.ID, err)

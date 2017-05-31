@@ -21,14 +21,12 @@ func dataSourceIBMCloudCfPrivateDomain() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfPrivateDomainRead(d *schema.ResourceData, meta interface{}) error {
-
-	domainName := d.Get("name").(string)
-
-	privateDomain, err := meta.(ClientSession).CloudFoundryPrivateDomainClient()
+	cfAPI, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
-	prdomain, err := privateDomain.FindByName(domainName)
+	domainName := d.Get("name").(string)
+	prdomain, err := cfAPI.PrivateDomains().FindByName(domainName)
 	if err != nil {
 		return fmt.Errorf("Error retrieving domain: %s", err)
 	}

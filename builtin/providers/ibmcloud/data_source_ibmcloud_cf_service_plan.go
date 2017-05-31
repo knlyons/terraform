@@ -27,26 +27,24 @@ func dataSourceIBMCloudCfServicePlan() *schema.Resource {
 }
 
 func dataSourceIBMCloudCfServicePlanRead(d *schema.ResourceData, meta interface{}) error {
-	srOff, err := meta.(ClientSession).CloudFoundryServiceOfferingClient()
+	cfClient, err := meta.(ClientSession).CFAPI()
 	if err != nil {
 		return err
 	}
-	service := d.Get("service").(string)
+	soffAPI := cfClient.ServiceOfferings()
+	spAPI := cfClient.ServicePlans()
 
-	serviceOff, err := srOff.FindByLabel(service)
+	service := d.Get("service").(string)
+	plan := d.Get("plan").(string)
+	serviceOff, err := soffAPI.FindByLabel(service)
 	if err != nil {
 		return fmt.Errorf("Error retrieving service offering: %s", err)
 	}
-
-	srPlan, _ := meta.(ClientSession).CloudFoundryServicePlanClient()
-	plan := d.Get("plan").(string)
-
-	servicePlan, err := srPlan.FindPlanInServiceOffering(serviceOff.GUID, plan)
+	servicePlan, err := spAPI.FindPlanInServiceOffering(serviceOff.GUID, plan)
 	if err != nil {
 		return fmt.Errorf("Error retrieving plan: %s", err)
 	}
 
 	d.SetId(servicePlan.GUID)
-
 	return nil
 }

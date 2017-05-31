@@ -170,15 +170,17 @@ func TestAccIBMCloudCFApp_with_service_instances(t *testing.T) {
 }
 
 func testAccCheckIBMCloudCFAppDestroy(s *terraform.State) error {
-
-	appClient := testAccProvider.Meta().(ClientSession).CloudFoundryAppClient()
+	cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+	if err != nil {
+		return err
+	}
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cf_app" {
 			continue
 		}
 		appGUID := rs.Primary.ID
 
-		_, err := appClient.Get(appGUID)
+		_, err := cfClient.Apps().Get(appGUID)
 		if err == nil {
 			return fmt.Errorf("App still exists: %s", rs.Primary.ID)
 		}
@@ -196,10 +198,13 @@ func testAccCheckIBMCloudCFAppExists(n string, obj *cfv2.AppFields) resource.Tes
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		appClient := testAccProvider.Meta().(ClientSession).CloudFoundryAppClient()
+		cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+		if err != nil {
+			return err
+		}
 		appGUID := rs.Primary.ID
 
-		app, err := appClient.Get(appGUID)
+		app, err := cfClient.Apps().Get(appGUID)
 		if err != nil {
 			return err
 		}
@@ -469,7 +474,7 @@ resource "ibmcloud_cf_service_instance" "service" {
 		resource "ibmcloud_cf_service_instance" "service1" {
 			name              = "%s"
 			space_guid        = "${data.ibmcloud_cf_space.space.id}"
-			service           = "cloudantNOSQLDB"
+			service           = "cloudantNoSQLDB"
 			plan              = "Lite"
 			tags               = ["cluster-service"]
 		}
@@ -523,7 +528,7 @@ resource "ibmcloud_cf_service_instance" "service" {
 resource "ibmcloud_cf_service_instance" "service1" {
 			name              = "%s"
 			space_guid        = "${data.ibmcloud_cf_space.space.id}"
-			service           = "cloudantNOSQLDB"
+			service           = "cloudantNoSQLDB"
 			plan              = "Lite"
 			tags               = ["cluster-service"]
 }

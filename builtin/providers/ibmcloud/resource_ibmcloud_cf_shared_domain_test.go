@@ -40,10 +40,13 @@ func testAccCheckIBMCloudCFSharedDomainExists(n string, obj *cfv2.SharedDomainFi
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		sharedDomainRepo := testAccProvider.Meta().(ClientSession).CloudFoundrySharedDomainClient()
+		cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+		if err != nil {
+			return err
+		}
 		sharedDomainGUID := rs.Primary.ID
 
-		shdomain, err := sharedDomainRepo.Get(sharedDomainGUID)
+		shdomain, err := cfClient.SharedDomains().Get(sharedDomainGUID)
 		if err != nil {
 			return err
 		}
@@ -54,7 +57,10 @@ func testAccCheckIBMCloudCFSharedDomainExists(n string, obj *cfv2.SharedDomainFi
 }
 
 func testAccCheckIBMCloudCFSharedDomainDestroy(s *terraform.State) error {
-	sharedDomainRepo := testAccProvider.Meta().(ClientSession).CloudFoundrySharedDomainClient()
+	cfClient, err := testAccProvider.Meta().(ClientSession).CFAPI()
+	if err != nil {
+		return err
+	}
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ibmcloud_cf_shared_domain" {
@@ -64,7 +70,7 @@ func testAccCheckIBMCloudCFSharedDomainDestroy(s *terraform.State) error {
 		sharedDomainGUID := rs.Primary.ID
 
 		// Try to find the shared domain
-		_, err := sharedDomainRepo.Get(sharedDomainGUID)
+		_, err := cfClient.SharedDomains().Get(sharedDomainGUID)
 
 		if err != nil && !strings.Contains(err.Error(), "404") {
 			return fmt.Errorf("Error waiting for CF shared domain (%s) to be destroyed: %s", rs.Primary.ID, err)
