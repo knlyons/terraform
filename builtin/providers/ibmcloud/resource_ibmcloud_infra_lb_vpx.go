@@ -593,8 +593,14 @@ func resourceIBMCloudInfraLbVpxExists(d *schema.ResourceData, meta interface{}) 
 	if err != nil {
 		return false, fmt.Errorf("Not a valid ID, must be an integer: %s", err)
 	}
-
 	nadc, err := service.Mask("id").Id(id).GetObject()
-
-	return nadc.Id != nil && *nadc.Id == id && err == nil, nil
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
+	}
+	return nadc.Id != nil && *nadc.Id == id, nil
 }

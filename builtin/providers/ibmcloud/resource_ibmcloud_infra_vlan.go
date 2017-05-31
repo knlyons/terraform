@@ -264,14 +264,21 @@ func resourceIBMCloudInfraVlanExists(d *schema.ResourceData, meta interface{}) (
 	sess := meta.(ClientSession).SoftLayerSession()
 	service := services.GetNetworkVlanService(sess)
 
-	vlanId, err := strconv.Atoi(d.Id())
+	vlanID, err := strconv.Atoi(d.Id())
 	if err != nil {
 		return false, fmt.Errorf("Not a valid vlan ID, must be an integer: %s", err)
 	}
 
-	_, err = service.Id(vlanId).Mask("id").GetObject()
-
-	return err == nil, err
+	result, err := service.Id(vlanID).Mask("id").GetObject()
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
+	}
+	return result.Id != nil && *result.Id == vlanID, nil
 }
 
 func findVlanByOrderId(sess *session.Session, orderId int) (datatypes.Network_Vlan, error) {

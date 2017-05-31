@@ -606,8 +606,15 @@ func resourceIBMCloudInfraLbVpxVipExists101(d *schema.ResourceData, meta interfa
 	}
 
 	vip, err := network.GetNadcLbVipByName(sess, nadcId, vipName)
-
-	return vip != nil && err == nil && *vip.Name == vipName, nil
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
+	}
+	return vip != nil && *vip.Name == vipName, nil
 }
 
 func resourceIBMCloudInfraLbVpxVipExists105(d *schema.ResourceData, meta interface{}) (bool, error) {

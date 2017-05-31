@@ -292,9 +292,13 @@ func resourceIBMCloudInfraLbLocalExists(d *schema.ResourceData, meta interface{}
 		GetObject()
 
 	if err != nil {
-		return false, err
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
 	}
-
 	return true, nil
 }
 

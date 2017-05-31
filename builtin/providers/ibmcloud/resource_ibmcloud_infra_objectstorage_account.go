@@ -3,6 +3,7 @@ package ibmcloud
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"time"
 
@@ -159,6 +160,11 @@ func resourceIBMCloudInfraObjectStorageAccountDelete(d *schema.ResourceData, met
 
 func resourceIBMCloudInfraObjectStorageAccountExists(d *schema.ResourceData, meta interface{}) (bool, error) {
 	err := resourceIBMCloudInfraObjectStorageAccountRead(d, meta)
-
-	return err == nil, err
+	if err != nil {
+		if strings.Contains(err.Error(), "Could not find account") {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }

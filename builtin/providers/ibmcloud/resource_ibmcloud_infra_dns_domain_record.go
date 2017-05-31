@@ -419,6 +419,13 @@ func resourceIBMCloudInfraDNSDomainRecordExists(d *schema.ResourceData, meta int
 	}
 
 	record, err := service.Id(id).GetObject()
-
-	return err == nil && record.Id != nil && *record.Id == id, nil
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error retrieving domain record info: %s", err)
+	}
+	return record.Id != nil && *record.Id == id, nil
 }

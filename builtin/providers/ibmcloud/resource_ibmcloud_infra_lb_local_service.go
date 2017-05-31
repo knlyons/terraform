@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"strings"
+
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/softlayer/softlayer-go/datatypes"
@@ -13,7 +15,6 @@ import (
 	"github.com/softlayer/softlayer-go/services"
 	"github.com/softlayer/softlayer-go/session"
 	"github.com/softlayer/softlayer-go/sl"
-	"strings"
 )
 
 func resourceIBMCloudInfraLbLocalService() *schema.Resource {
@@ -294,9 +295,13 @@ func resourceIBMCloudInfraLbLocalServiceExists(d *schema.ResourceData, meta inte
 		GetObject()
 
 	if err != nil {
-		return false, err
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
 	}
-
 	return true, nil
 }
 

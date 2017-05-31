@@ -128,5 +128,13 @@ func resourceIBMCloudInfraProvisioningHookExists(d *schema.ResourceData, meta in
 	}
 
 	result, err := service.Id(hookId).GetObject()
-	return result.Id != nil && err == nil && *result.Id == hookId, nil
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
+	}
+	return result.Id != nil && *result.Id == hookId, nil
 }

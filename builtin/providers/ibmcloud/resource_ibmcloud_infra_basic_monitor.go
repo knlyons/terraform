@@ -277,5 +277,13 @@ func resourceIBMCloudInfraBasicMonitorExists(d *schema.ResourceData, meta interf
 	}
 
 	result, err := service.Id(basicMonitorId).GetObject()
-	return err == nil && *result.Id == basicMonitorId, nil
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error retrieving basic monitor info: %s", err)
+	}
+	return *result.Id == basicMonitorId, nil
 }

@@ -636,9 +636,13 @@ func resourceIBMCloudInfraLbVpxServiceExists101(d *schema.ResourceData, meta int
 	sess := meta.(ClientSession).SoftLayerSession()
 	lbService, err := network.GetNadcLbVipServiceByName(sess, nadcId, vipName, serviceName)
 	if err != nil {
-		return false, fmt.Errorf("Unable to get load balancer service %s: %s", serviceName, err)
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
 	}
-
 	return *lbService.Name == serviceName, nil
 }
 

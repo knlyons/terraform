@@ -650,7 +650,15 @@ func resourceIBMCloudInfraScaleGroupExists(d *schema.ResourceData, meta interfac
 	}
 
 	result, err := scaleGroupService.Id(groupId).Mask("id").GetObject()
-	return result.Id != nil && err == nil && *result.Id == groupId, nil
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
+	}
+	return result.Id != nil && *result.Id == groupId, nil
 }
 
 func getLocationGroupRegionalId(sess *session.Session, locationGroupRegionalName string) (int, error) {

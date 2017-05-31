@@ -335,9 +335,17 @@ func resourceIBMCloudInfraScalePolicyExists(d *schema.ResourceData, meta interfa
 	if err != nil {
 		return false, fmt.Errorf("Not a valid ID, must be an integer: %s", err)
 	}
-
 	result, err := service.Id(policyId).Mask("id").GetObject()
-	return result.Id != nil && *result.Id == policyId && err == nil, nil
+	if err != nil {
+		if apiErr, ok := err.(sl.Error); ok {
+			if apiErr.StatusCode == 404 {
+				return false, nil
+			}
+		}
+		return false, fmt.Errorf("Error communicating with the API: %s", err)
+	}
+	return result.Id != nil && *result.Id == policyId, nil
+
 }
 
 func validateTriggerTypes(d *schema.ResourceData) error {
