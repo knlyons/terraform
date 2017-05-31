@@ -130,4 +130,3 @@ The following arguments are supported in the `provider` block:
 
 * `region` - (Optional) The Bluemix region. It can also be sourced from the `BM_REGION` or `BLUEMIX_REGION` environment variable. The former variable has higher precedence. Default value: `us-south`.
 
-* `skip_service_configuration` - (Optional, Set) The options allows one to skip configuring the provider for IBM Cloud services which the user may not create. Supported values are - `bluemix`, `softlayer` and `cluster`. This is useful  when a user has credentials for only a particular service for example SoftLayer. In that case provider will not complain about the absence of `bluemix_api_key`.

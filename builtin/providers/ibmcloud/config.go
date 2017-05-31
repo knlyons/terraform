@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashicorp/terraform/helper/schema"
 	slsession "github.com/softlayer/softlayer-go/session"
 
 	bluemix "github.com/IBM-Bluemix/bluemix-go"
@@ -47,9 +46,6 @@ type Config struct {
 
 	// Softlayer API Key
 	SoftLayerAPIKey string
-
-	//SkipServiceConfig is a set of services whose configuration is to be skipped. Valid values could be bluemix, softlayer etc
-	SkipServiceConfig *schema.Set
 
 	//Retry Count for API calls
 	//Unexposed in the schema at this point as they are used only during session creation for a few calls

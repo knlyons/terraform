@@ -47,13 +47,6 @@ func Provider() terraform.ResourceProvider {
 				Description: "The timeout (in seconds) to set for any SoftLayer API calls made.",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"SL_TIMEOUT", "SOFTLAYER_TIMEOUT"}, 60),
 			},
-			"skip_service_configuration": {
-				Type:        schema.TypeSet,
-				Optional:    true,
-				Description: "IBM Cloud has many services. At times you may not need to interact with some of them. This paramter allows to skip configuring clients for those",
-				Elem:        &schema.Schema{Type: schema.TypeString},
-				Set:         schema.HashString,
-			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
@@ -127,8 +120,6 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	bluemixTimeout := d.Get("bluemix_timeout").(int)
 	region := d.Get("region").(string)
 
-	skipServiceConfig := d.Get("skip_service_configuration").(*schema.Set)
-
 	config := Config{
 		BluemixAPIKey:        bluemixAPIKey,
 		Region:               region,
@@ -136,7 +127,6 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		SoftLayerTimeout:     time.Duration(softlayerTimeout) * time.Second,
 		SoftLayerUserName:    softlayerUsername,
 		SoftLayerAPIKey:      softlayerAPIKey,
-		SkipServiceConfig:    skipServiceConfig,
 		RetryCount:           3,
 		RetryDelay:           30 * time.Millisecond,
 		SoftLayerEndpointURL: SoftlayerRestEndpoint,
