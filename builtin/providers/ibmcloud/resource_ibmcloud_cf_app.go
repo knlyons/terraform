@@ -92,7 +92,7 @@ func resourceIBMCloudCfApp() *schema.Resource {
 				Optional:    true,
 			},
 			"wait_time_minutes": {
-				Description: "Define timeout to wait for the app instances to start update/restage etc. For example, if memory is updated then instances are automatically destroyed and new one spun up by the Cloud controller.",
+				Description: "Define timeout to wait for the app instances to start/update/restage etc. For example, if memory is updated then instances are automatically destroyed and new one spun up by the Cloud controller.",
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Default:     20,
@@ -251,6 +251,8 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 	restartRequired := false
 	restageRequired := false
 
+	waitTimeout := time.Duration(d.Get("wait_time_minutes").(int)) * time.Minute
+
 	if d.HasChange("name") {
 		appUpdatePayload.Name = helpers.String(d.Get("name").(string))
 	}
@@ -293,6 +295,7 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 		if err != nil {
 			return err
 		}
+		log.Println("[DEBUG] Uploading application bits")
 		_, err = appAPI.Upload(appGUID, appZipLoc)
 		if err != nil {
 			return fmt.Errorf("Error uploading  app: %s", err)
@@ -300,80 +303,26 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 		restartRequired = true
 	}
 
-	if d.HasChange("route_guid") {
-		ors, nrs := d.GetChange("route_guid")
-		or := ors.(*schema.Set)
-		nr := nrs.(*schema.Set)
-
-		remove := expandStringList(or.Difference(nr).List())
-		add := expandStringList(nr.Difference(or).List())
-
-		if len(add) > 0 {
-			for i := range add {
-				_, err = appAPI.BindRoute(appGUID, add[i])
-				if err != nil {
-					return fmt.Errorf("Error while binding route %q to application %s: %q", add[i], appGUID, err)
-				}
-			}
-		}
-		if len(remove) > 0 {
-			for i := range remove {
-				err = appAPI.UnBindRoute(appGUID, remove[i])
-				if err != nil {
-					return fmt.Errorf("Error while un-binding route %q from application %s: %q", add[i], appGUID, err)
-				}
-			}
-		}
-
+	err = updateRouteGUID(appGUID, appAPI, d)
+	if err != nil {
+		return err
 	}
 
-	if d.HasChange("service_instance_guid") {
-		oss, nss := d.GetChange("service_instance_guid")
-		os := oss.(*schema.Set)
-		ns := nss.(*schema.Set)
-		remove := expandStringList(os.Difference(ns).List())
-		add := expandStringList(ns.Difference(os).List())
-
-		sbAPI := cfClient.ServiceBindings()
-
-		if len(add) > 0 {
-			for i := range add {
-				sbPayload := v2.ServiceBindingRequest{
-					ServiceInstanceGUID: add[i],
-					AppGUID:             appGUID,
-				}
-				_, err = sbAPI.Create(sbPayload)
-				if err != nil {
-					return fmt.Errorf("Error while binding service instance %s to application %s: %q", add[i], appGUID, err)
-				}
-				restageRequired = true
-			}
-		}
-		if len(remove) > 0 {
-			appFilters, err := new(v2.Filter).Name("app_guid").Eq(appGUID).Build()
-			if err != nil {
-				return err
-			}
-			svcFilters, err := new(v2.Filter).Name("service_instance_guid").In(remove...).Build()
-			if err != nil {
-				return err
-			}
-			bindings, err := sbAPI.List(appFilters, svcFilters)
-			if err != nil {
-				return err
-			}
-			sbIds := make([]string, len(bindings))
-			for i, sb := range bindings {
-				sbIds[i] = sb.GUID
-			}
-			err = appAPI.DeleteServiceBindings(appGUID, sbIds...)
-			if err != nil {
-				return fmt.Errorf("Error while un-binding service instances %s to application %s: %q", remove, appGUID, err)
-			}
-			restageRequired = true
-		}
+	restage, err := updateServiceInstanceGUID(appGUID, d, meta)
+	if err != nil {
+		return err
+	}
+	if restage {
+		restageRequired = true
 	}
 
+	//Wait if any previous staging is going on
+	state, err := appAPI.WaitForAppStatus(v2.AppStagedState, appGUID, waitTimeout)
+	if waitTimeout != 0 && (err != nil || state == v2.AppPendingState) {
+		return fmt.Errorf("The application is still in %s from last operations.Please try again after sometime by increasing timeout value %q", state, err)
+	}
+
+	//If restage and restart both are required then we only need restage as that starts over everything
 	if restageRequired {
 		log.Println("[INFO] Restage since buildpack has changed")
 		err := restageApp(appGUID, d, meta)
@@ -386,12 +335,11 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 			return err
 		}
 	} else {
-		//In case only memory/disk etc are updated then cloud controlled would destroy the current instances
+		//In case only memory/disk etc are updated then cloud controller would destroy the current instances
 		//and spin new ones, so we are waiting till they come up again
-		waitTimeout := time.Duration(d.Get("wait_time_minutes").(int)) * time.Minute
 		state, err := appAPI.WaitForInstanceStatus(v2.AppRunningState, appGUID, waitTimeout)
 		if waitTimeout != 0 && (err != nil || state != v2.AppRunningState) {
-			return fmt.Errorf("All applications instances  couldn't be started, Current status is %s, %q", state, err)
+			return fmt.Errorf("All applications instances aren't %s, Current status is %s, %q", v2.AppRunningState, state, err)
 		}
 	}
 
@@ -436,6 +384,92 @@ func resourceIBMCloudCfAppExists(d *schema.ResourceData, meta interface{}) (bool
 	return app.Metadata.GUID == id, nil
 }
 
+func updateRouteGUID(appGUID string, appAPI v2.Apps, d *schema.ResourceData) (err error) {
+	if d.HasChange("route_guid") {
+		ors, nrs := d.GetChange("route_guid")
+		or := ors.(*schema.Set)
+		nr := nrs.(*schema.Set)
+
+		remove := expandStringList(or.Difference(nr).List())
+		add := expandStringList(nr.Difference(or).List())
+
+		if len(add) > 0 {
+			for i := range add {
+				_, err = appAPI.BindRoute(appGUID, add[i])
+				if err != nil {
+					return fmt.Errorf("Error while binding route %q to application %s: %q", add[i], appGUID, err)
+				}
+			}
+		}
+		if len(remove) > 0 {
+			for i := range remove {
+				err = appAPI.UnBindRoute(appGUID, remove[i])
+				if err != nil {
+					return fmt.Errorf("Error while un-binding route %q from application %s: %q", add[i], appGUID, err)
+				}
+			}
+		}
+	}
+	return
+}
+
+func updateServiceInstanceGUID(appGUID string, d *schema.ResourceData, meta interface{}) (restageRequired bool, err error) {
+	cfClient, err := meta.(ClientSession).CFAPI()
+	if err != nil {
+		return false, err
+	}
+	appAPI := cfClient.Apps()
+	sbAPI := cfClient.ServiceBindings()
+	if d.HasChange("service_instance_guid") {
+		oss, nss := d.GetChange("service_instance_guid")
+		os := oss.(*schema.Set)
+		ns := nss.(*schema.Set)
+		remove := expandStringList(os.Difference(ns).List())
+		add := expandStringList(ns.Difference(os).List())
+
+		if len(add) > 0 {
+			for i := range add {
+				sbPayload := v2.ServiceBindingRequest{
+					ServiceInstanceGUID: add[i],
+					AppGUID:             appGUID,
+				}
+				_, err = sbAPI.Create(sbPayload)
+				if err != nil {
+					err = fmt.Errorf("Error while binding service instance %s to application %s: %q", add[i], appGUID, err)
+					return
+				}
+				restageRequired = true
+			}
+		}
+		if len(remove) > 0 {
+			var appFilters, svcFilters string
+			var bindings []v2.ServiceBinding
+			appFilters, err = new(v2.Filter).Name("app_guid").Eq(appGUID).Build()
+			if err != nil {
+				return
+			}
+			svcFilters, err = new(v2.Filter).Name("service_instance_guid").In(remove...).Build()
+			if err != nil {
+				return
+			}
+			bindings, err = sbAPI.List(appFilters, svcFilters)
+			if err != nil {
+				return
+			}
+			sbIds := make([]string, len(bindings))
+			for i, sb := range bindings {
+				sbIds[i] = sb.GUID
+			}
+			err = appAPI.DeleteServiceBindings(appGUID, sbIds...)
+			if err != nil {
+				err = fmt.Errorf("Error while un-binding service instances %s to application %s: %q", remove, appGUID, err)
+				return
+			}
+			restageRequired = true
+		}
+	}
+	return
+}
 func restartApp(appGUID string, d *schema.ResourceData, meta interface{}) error {
 	cfClient, _ := meta.(ClientSession).CFAPI()
 	appAPI := cfClient.Apps()
@@ -481,7 +515,7 @@ func checkAppStatus(status *v2.AppState) error {
 		return fmt.Errorf("Applications couldn't be staged, current status is  %s", status.PackageState)
 	}
 	if status.InstanceState != v2.AppRunningState {
-		return fmt.Errorf("Applications instances  couldn't be started, current status is %s", status.InstanceState)
+		return fmt.Errorf("All applications instances aren't %s, Current status is %s", v2.AppRunningState, status.InstanceState)
 	}
 	return nil
 }
