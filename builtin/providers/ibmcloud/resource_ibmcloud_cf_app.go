@@ -76,10 +76,9 @@ func resourceIBMCloudCfApp() *schema.Resource {
 				Set:         schema.HashString,
 			},
 			"app_path": {
-				Description:  "Define the  path of the zip file of the application.",
-				Type:         schema.TypeString,
-				Required:     true,
-				ValidateFunc: validateAppZipPath,
+				Description: "Define the  path of the zip file of the application.",
+				Type:        schema.TypeString,
+				Required:    true,
 			},
 			"app_version": {
 				Description: "Version of the application",
@@ -179,10 +178,11 @@ func resourceIBMCloudCfAppCreate(d *schema.ResourceData, meta interface{}) error
 		}
 	}
 	log.Println("[INFO] Upload the app bits to the cloud foundary application")
-	applicationZip, err := homedir.Expand(d.Get("app_path").(string))
+	applicationZip, err := processAppZipPath(d.Get("app_path").(string))
 	if err != nil {
 		return err
 	}
+
 	_, err = appAPI.Upload(appGUID, applicationZip)
 	if err != nil {
 		return fmt.Errorf("Error uploading app bits: %s", err)
@@ -281,7 +281,7 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 
 	if d.HasChange("environment_json") {
 		appUpdatePayload.EnvironmentJSON = helpers.Map(d.Get("environment_json").(map[string]interface{}))
-		restartRequired = true
+		restageRequired = true
 	}
 	log.Println("[INFO] Update cloud foundary application")
 
@@ -291,7 +291,7 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 	}
 	//TODO find the digest of the zip and avoid upload if it is same
 	if d.HasChange("app_path") || d.HasChange("app_version") {
-		appZipLoc, err := homedir.Expand(d.Get("app_path").(string))
+		appZipLoc, err := processAppZipPath(d.Get("app_path").(string))
 		if err != nil {
 			return err
 		}
@@ -518,4 +518,15 @@ func checkAppStatus(status *v2.AppState) error {
 		return fmt.Errorf("All applications instances aren't %s, Current status is %s", v2.AppRunningState, status.InstanceState)
 	}
 	return nil
+}
+
+func processAppZipPath(path string) (string, error) {
+	applicationZip, err := homedir.Expand(path)
+	if err != nil {
+		return path, fmt.Errorf("home directory in the given path %s couldn't be expanded", path)
+	}
+	if !helpers.FileExists(applicationZip) {
+		return path, fmt.Errorf("The given path: %s doesn't exist", path)
+	}
+	return applicationZip, nil
 }
