@@ -465,7 +465,6 @@ func updateServiceInstanceGUID(appGUID string, d *schema.ResourceData, meta inte
 				err = fmt.Errorf("Error while un-binding service instances %s to application %s: %q", remove, appGUID, err)
 				return
 			}
-			restageRequired = true
 		}
 	}
 	return
