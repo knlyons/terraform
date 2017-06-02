@@ -316,11 +316,12 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 		restageRequired = true
 	}
 
-	//Wait if any previous staging is going on
+	/*Wait if any previous staging is going on
+	log.Println("[INFO] Waiting to see any previous staging is on or not")
 	state, err := appAPI.WaitForAppStatus(v2.AppStagedState, appGUID, waitTimeout)
 	if waitTimeout != 0 && (err != nil || state == v2.AppPendingState) {
 		return fmt.Errorf("The application is still in %s from last operations.Please try again after sometime by increasing timeout value %q", state, err)
-	}
+	}*/
 
 	//If restage and restart both are required then we only need restage as that starts over everything
 	if restageRequired {
@@ -465,7 +466,6 @@ func updateServiceInstanceGUID(appGUID string, d *schema.ResourceData, meta inte
 				err = fmt.Errorf("Error while un-binding service instances %s to application %s: %q", remove, appGUID, err)
 				return
 			}
-			restageRequired = true
 		}
 	}
 	return
@@ -526,7 +526,7 @@ func processAppZipPath(path string) (string, error) {
 		return path, fmt.Errorf("home directory in the given path %s couldn't be expanded", path)
 	}
 	if !helpers.FileExists(applicationZip) {
-		return path, fmt.Errorf("The given path: %s doesn't exist", path)
+		return path, fmt.Errorf("The given app path: %s doesn't exist", path)
 	}
 	return applicationZip, nil
 }

@@ -21,7 +21,7 @@ func TestAccIBMCloudCFApp_Invalid_Application_Path(t *testing.T) {
 
 			resource.TestStep{
 				Config:      testAccCheckIBMCloudCFAppInvalidPath(name),
-				ExpectError: regexp.MustCompile(`app_path`),
+				ExpectError: regexp.MustCompile(`The given app path:  doesn't exist`),
 			},
 		},
 	})
