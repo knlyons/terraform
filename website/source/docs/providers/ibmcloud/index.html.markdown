@@ -101,18 +101,6 @@ $ export SL_API_KEY="sl_api_key"
 $ terraform plan
 ```
 
-### Skip Service Configuration
-See `skip_service_configuration` in the Argument Reference section.
-
-You can include the `skip_service_configuration` argument if you want to omit SoftLayer credentials from the requirements to set up the provider. The following example directs the provider to skip the `softlayer_username` and `softlayer_api_key` arguments.
-
-```
-provider "ibmcloud" {
-    skip_service_configuration = ["softlayer"]
-}
-```
-
-
 ## Argument Reference
 
 The following arguments are supported in the `provider` block:
