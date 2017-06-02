@@ -1,10 +1,18 @@
 resource "null_resource" "prepare_app_zip" {
   triggers = {
     app_version = "${var.app_version}"
+    git_repo = "${var.git_repo}"
   }
-
   provisioner "local-exec" {
-    command = "mkdir -p  ${var.dir_to_clone}; cd ${var.dir_to_clone}; git init; git remote add origin ${var.git_repo}; git fetch; git checkout -t origin/master; zip -r ${var.app_zip} *"
+    command = <<EOF
+        mkdir -p ${var.dir_to_clone}
+        cd ${var.dir_to_clone}
+        git init
+        git remote add origin ${var.git_repo}
+        git fetch
+        git checkout -t origin/master
+        zip -r ${var.app_zip} *
+        EOF
   }
 }
 
@@ -41,14 +49,14 @@ resource "ibmcloud_cf_app" "app" {
   name              = "${var.app_name}"
   space_guid        = "${data.ibmcloud_cf_space.space.id}"
   app_path          = "${var.app_zip}"
-  wait_time_minutes = 2
+  wait_time_minutes = 10
 
   buildpack  = "${var.buildpack}"
   disk_quota = 512
 
   command               = "${var.command}"
   memory                = 128
-  instances             = 1
+  instances             = 3
   disk_quota            = 512
   route_guid            = ["${ibmcloud_cf_route.route.id}"]
   service_instance_guid = ["${ibmcloud_cf_service_instance.service.id}"]

@@ -1,9 +1,9 @@
 variable "app_version" {
-  default = "4"
+  default = "1"
 }
 
 variable "git_repo" {
-  default = "https://github.com/ashishth09/nodejs-cloudantdb-crud-example"
+  default = "https://github.com/IBM-Bluemix/nodejs-cloudantdb-crud-example"
 }
 
 variable "dir_to_clone" {
@@ -15,11 +15,11 @@ variable "app_zip" {
 }
 
 variable "org" {
-  default = "ashishth@in.ibm.com"
+  default = ""
 }
 
 variable "space" {
-  default = "dev"
+  default = ""
 }
 
 variable "route" {
