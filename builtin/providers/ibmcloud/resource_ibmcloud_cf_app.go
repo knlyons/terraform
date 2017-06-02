@@ -316,11 +316,12 @@ func resourceIBMCloudCfAppUpdate(d *schema.ResourceData, meta interface{}) error
 		restageRequired = true
 	}
 
-	//Wait if any previous staging is going on
+	/*Wait if any previous staging is going on
+	log.Println("[INFO] Waiting to see any previous staging is on or not")
 	state, err := appAPI.WaitForAppStatus(v2.AppStagedState, appGUID, waitTimeout)
 	if waitTimeout != 0 && (err != nil || state == v2.AppPendingState) {
 		return fmt.Errorf("The application is still in %s from last operations.Please try again after sometime by increasing timeout value %q", state, err)
-	}
+	}*/
 
 	//If restage and restart both are required then we only need restage as that starts over everything
 	if restageRequired {
