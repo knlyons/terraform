@@ -23,8 +23,8 @@ data "ibmcloud_cf_service_key" "serviceKeydata" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the service key.
-* `service_instance_name` - (Required) The name of the service instance that the service key is associated with.
+* `name` - (Required) The name of the service key. The value can be retrieved by running the `bx service keys` command in the [Bluemix CLI](https://console.ng.bluemix.net/docs/cli/reference/bluemix_cli/index.html#getting-started).
+* `service_instance_name` - (Required) The name of the service instance that the service key is associated with. The value can be retrieved by running the `bx service list` command in the Bluemix CLI.
 
 ## Attributes Reference
 

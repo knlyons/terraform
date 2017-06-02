@@ -32,7 +32,7 @@ resource "ibmcloud_infra_virtual_guest" "vm1" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the image template as it was defined in Bluemix Infrastructure (SoftLayer). The names can be found in the SoftLayer Customer Portal, by navigating to **Devices > Manage > Images**.
+* `name` - (Required) The name of the image template as it was defined in Bluemix Infrastructure (SoftLayer). The names can be found in the [SoftLayer Customer Portal](https://control.softlayer.com), by navigating to **Devices > Manage > Images**.
 
 ## Attributes Reference
 

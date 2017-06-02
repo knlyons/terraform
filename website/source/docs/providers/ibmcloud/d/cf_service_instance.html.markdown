@@ -22,7 +22,7 @@ data "ibmcloud_cf_service_instance" "serviceInstance" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the service instance.
+* `name` - (Required) The name of the service instance. The value can be retrieved by running the `bx service list` command in the [Bluemix CLI](https://console.ng.bluemix.net/docs/cli/reference/bluemix_cli/index.html#getting-started).
 
 ## Attributes Reference
 
@@ -30,4 +30,4 @@ The following attributes are exported:
 
 * `id` - The unique identifier of the service instance. 
 * `credentials` - The credentials associated with the service instance.
-* `service_plan_guid` - The plan of the service offering used by this service instance  
+* `service_plan_guid` - The plan of the service offering used by this service instance.

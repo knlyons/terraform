@@ -36,8 +36,8 @@ resource "ibmcloud_cf_service_instance" "service_instance" {
 
 The following arguments are supported:
 
-* `org` - (Required) The name of your Bluemix org.
-* `space` - (Required) The name of your space.
+* `org` - (Required) The name of your Bluemix org. The value can be retrieved by running the `bx iam orgs` command in the [Bluemix CLI](https://console.ng.bluemix.net/docs/cli/reference/bluemix_cli/index.html#getting-started).
+* `space` - (Required) The name of your space. The value can be retrieved by running the `bx iam spaces` command in the Bluemix CLI.
 
 ## Attributes Reference
 

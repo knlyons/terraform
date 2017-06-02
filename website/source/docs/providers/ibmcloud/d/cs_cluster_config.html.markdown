@@ -30,11 +30,11 @@ The following arguments are supported:
 
 * `cluster_name_id` - (Required) Name or ID of the cluster.
 * `config_dir` - (Required) The directory where you want the cluster configuration to download.
-* `admin` - (Optional) Set it to true to download config for the admin. Default false.
-* `download` - (Optional) Set it to false to skip downloading the config for the admin. Default true. Since it is part of a data source it means by default the config is downloaded for every `terraform` call. For a particular cluster name/id the config is guaranteed to be downloaded to the same path for a given `config_dir`
-* `org_guid` - (Required) The GUID for the Bluemix organization that the cluster is associated with. The value can be retrieved from the `ibmcloud_cf_org` data source.
-* `space_guid` - (Required) The GUID for the Bluemix space that the cluster is associated with. The value can be retrieved from the `ibmcloud_cf_space` data source.
-* `account_guid` - (Required) The GUID for the Bluemix account that the cluster is associated with. The value can be retrieved from the `ibmcloud_cf_account` data source.
+* `admin` - (Optional) Set to `true` to download config for the admin. Default value: `false`.
+* `download` - (Optional) Set to `false` to skip downloading the config for the admin. Default value: `true`. Since it is part of a data source, the config is downloaded for every `terraform` call by default. For a particular cluster name/ID, the config is guaranteed to be downloaded to the same path for a given `config_dir`.
+* `org_guid` - (Required) The GUID for the Bluemix organization that the cluster is associated with. The value can be retrieved from the `ibmcloud_cf_org` data source, or by running the `bx iam orgs --guid` command in the [Bluemix CLI](https://console.ng.bluemix.net/docs/cli/reference/bluemix_cli/index.html#getting-started).
+* `space_guid` - (Required) The GUID for the Bluemix space that the cluster is associated with. The value can be retrieved from the `ibmcloud_cf_space` data source, or by running the `bx iam space <space_name> --guid` command in the Bluemix CLI.
+* `account_guid` - (Required) The GUID for the Bluemix account that the cluster is associated with. The value can be retrieved from the `ibmcloud_cf_account` data source, or by running the `bx iam accounts` command in the Bluemix CLI.
 
 
 ## Attributes Reference
@@ -42,4 +42,4 @@ The following arguments are supported:
 The following attributes are exported:
 
 * `id` - The unique identifier of the Cluster config 
-* `config_file_path` -  The path to the cluster config file. Typically the Kubernetes yml config file.
+* `config_file_path` - The path to the cluster config file. Typically the Kubernetes yml config file.

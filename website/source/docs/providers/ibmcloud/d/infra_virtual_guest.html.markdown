@@ -26,14 +26,14 @@ The following arguments are supported:
 
 * `hostname` - (Required) The hostname of the virtual guest.
 * `domain` - (Required) The domain of the virtual guest.
-* `most_recent` - (Optional) True or False. If true and multiple entries are found, the most recently created virtual guest is used.If false, an error is returned.
+* `most_recent` - (Optional) `True` or `False`. If `true` and multiple entries are found, the most recently created virtual guest is used. If `false`, an error is returned.
 
 ## Attributes Reference
 
 The following attributes are exported:
 
 * `id` - The ID of the virtual guest.
-* `datacenter` - Datacenter in which the virtual guest is deployed.
+* `datacenter` - Data center in which the virtual guest is deployed.
 * `cores` - Number of cpu cores.
 * `status` - The VSI status.
 * `last_known_power_state` - The last known power state of a virtual guest in the event the guest is turned off outside of IMS or has gone offline.

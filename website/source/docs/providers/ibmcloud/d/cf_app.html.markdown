@@ -23,20 +23,20 @@ data "ibmcloud_cf_app" "testacc_ds_app" {
 
 The following arguments are supported:
 
-* `name` - (Required, string) The name of the application.
-* `space_guid` - (Required, string) Define space guid to which application belongs. The values can be retrieved from data source `ibmcloud_cf_space`.
+* `name` - (Required, string) The name of the application. The value can be retrieved by running the `bx app list` command in the [Bluemix CLI](https://console.ng.bluemix.net/docs/cli/reference/bluemix_cli/index.html#getting-started).
+* `space_guid` - (Required, string) The GUID of the Bluemix space where the application is deployed. The value can be retrieved with the `ibmcloud_cf_space` data source, or by running the `bx iam space <space_name> --guid` command in the Bluemix CLI.
 
 ## Attributes Reference
 
 The following attributes are exported:
 
 * `id` - The ID of the application.
-* `memory` - Memory allocated to the application. In megabytes.
+* `memory` - Memory that is allocated to the application, specified in megabytes.
 * `instances` - The number of instances of the application.
-* `disk_quota` - The disk allocated to an instance of an application. In megabytes.
-* `buildpack` - Buildpack used by the application.It can be a) Blank means autodetection; b) A Git Url pointing to a buildpack; c) Name of an installed buildpack.
+* `disk_quota` - The disk quota for an instance of the application, specified in megabytes.
+* `buildpack` - Buildpack used by the application. It can be a) Blank to indicate auto-detection, b) A Git URL pointing to a buildpack, or c) The name of an installed buildpack.
 * `environment_json` - Key/value pairs of all the environment variables. Does not include any system or service variables.
-* `route_guid` - The route guids which are bound to the application.
-* `service_instance_guid` - The service instance guids which are bound to the application.
-* `package_state` - The state of the application package whether staged, pending etc.
+* `route_guid` - The route GUIDs that are bound to the application.
+* `service_instance_guid` - The service instance GUIDs that are bound to the application.
+* `package_state` - The state of the application package, such as staged, pending.
 * `state` - The state of the application.

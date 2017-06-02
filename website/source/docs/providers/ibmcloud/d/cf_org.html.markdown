@@ -22,7 +22,7 @@ data "ibmcloud_cf_org" "orgdata" {
 
 The following arguments are supported:
 
-* `org` - (Required) The name of the Bluemix org.
+* `org` - (Required) The name of the Bluemix org. The value can be retrieved by running the `bx iam orgs` command in the [Bluemix CLI](https://console.ng.bluemix.net/docs/cli/reference/bluemix_cli/index.html#getting-started).
 
 ## Attributes Reference
 
