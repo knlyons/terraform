@@ -2,9 +2,13 @@ package ibmcloud
 
 import (
 	"fmt"
+	"log"
+	"path/filepath"
 
+	v1 "github.com/IBM-Bluemix/bluemix-go/api/k8scluster/k8sclusterv1"
+	"github.com/IBM-Bluemix/bluemix-go/helpers"
 	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/mitchellh/go-homedir"
+	homedir "github.com/mitchellh/go-homedir"
 )
 
 func dataSourceIBMCloudArmadaClusterConfig() *schema.Resource {
@@ -39,8 +43,20 @@ func dataSourceIBMCloudArmadaClusterConfig() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 			},
+			"download": {
+				Description: "If set to false will not download the config, otherwise they are downloaded each time but onto the same path for a given cluster name/id",
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     true,
+			},
+			"admin": {
+				Description: "If set to true will download the config for admin",
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+			},
 			"config_file_path": {
-				Description: "The path to the kubernetes yml file ",
+				Description: "The absolute path to the kubernetes config yml file ",
 				Type:        schema.TypeString,
 				Computed:    true,
 			},
@@ -55,20 +71,32 @@ func dataSourceIBMCloudArmadaClusterConfigRead(d *schema.ResourceData, meta inte
 	}
 	csAPI := csClient.Clusters()
 	name := d.Get("cluster_name_id").(string)
-
-	targetEnv := getClusterTargetHeader(d)
+	download := d.Get("download").(bool)
+	admin := d.Get("admin").(bool)
 	configDir := d.Get("config_dir").(string)
+
 	if len(configDir) == 0 {
 		configDir, err = homedir.Dir()
 		if err != nil {
 			return fmt.Errorf("Error fetching homedir: %s", err)
 		}
-
 	}
+	var configPath string
+	if !download {
+		log.Println("Skipping download of the cluster config", "Going to check if it already exists")
+		expectedDir := v1.ComputeClusterConfigDir(configDir, name, admin)
+		configPath = filepath.Join(expectedDir, "config.yml")
+		if !helpers.FileExists(configPath) {
+			return fmt.Errorf(`Couldn't  find the cluster config at expected path %s. Please set "download" to true to download the new config`, configPath)
+		}
 
-	configPath, err := csAPI.GetClusterConfig(name, configDir, targetEnv)
-	if err != nil {
-		return fmt.Errorf("Error downloading the cluster config [%s]: %s", name, err)
+	} else {
+		targetEnv := getClusterTargetHeader(d)
+		var err error
+		configPath, err = csAPI.GetClusterConfig(name, configDir, admin, targetEnv)
+		if err != nil {
+			return fmt.Errorf("Error downloading the cluster config [%s]: %s", name, err)
+		}
 	}
 
 	d.SetId(name)
