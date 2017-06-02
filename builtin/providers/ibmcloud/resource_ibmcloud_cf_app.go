@@ -525,7 +525,7 @@ func processAppZipPath(path string) (string, error) {
 		return path, fmt.Errorf("home directory in the given path %s couldn't be expanded", path)
 	}
 	if !helpers.FileExists(applicationZip) {
-		return path, fmt.Errorf("The given path: %s doesn't exist", path)
+		return path, fmt.Errorf("The given app path: %s doesn't exist", path)
 	}
 	return applicationZip, nil
 }
