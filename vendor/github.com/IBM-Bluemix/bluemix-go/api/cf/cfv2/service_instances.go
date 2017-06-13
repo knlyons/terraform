@@ -11,17 +11,17 @@ import (
 type ServiceInstanceCreateRequest struct {
 	Name      string                 `json:"name"`
 	SpaceGUID string                 `json:"space_guid"`
-	PlanGUID  string                 `json:"service_plan_guid,omitempty"`
+	PlanGUID  string                 `json:"service_plan_guid"`
 	Params    map[string]interface{} `json:"parameters,omitempty"`
 	Tags      []string               `json:"tags,omitempty"`
 }
 
 //ServiceInstanceUpdateRequest ...
 type ServiceInstanceUpdateRequest struct {
-	Name     string                 `json:"name"`
-	PlanGUID string                 `json:"service_plan_guid,omitempty"`
+	Name     *string                `json:"name,omitempty"`
+	PlanGUID *string                `json:"service_plan_guid,omitempty"`
 	Params   map[string]interface{} `json:"parameters,omitempty"`
-	Tags     []string               `json:"tags"`
+	Tags     *[]string              `json:"tags,omitempty"`
 }
 
 //ServiceInstance ...
@@ -114,11 +114,12 @@ func (resource ServiceInstanceResource) ToModel() ServiceInstance {
 
 //ServiceInstances ...
 type ServiceInstances interface {
-	Create(name, planGUID, spaceGUID string, params map[string]interface{}, tags []string) (*ServiceInstanceFields, error)
-	Update(newName, instanceGUID, planGUID string, params map[string]interface{}, tags []string) (*ServiceInstanceFields, error)
+	Create(req ServiceInstanceCreateRequest) (*ServiceInstanceFields, error)
+	Update(instanceGUID string, req ServiceInstanceUpdateRequest) (*ServiceInstanceFields, error)
 	Delete(instanceGUID string) error
 	FindByName(instanceName string) (*ServiceInstance, error)
 	Get(instanceGUID string) (*ServiceInstanceFields, error)
+	ListServiceBindings(instanceGUID string) ([]ServiceBinding, error)
 }
 
 type serviceInstance struct {
@@ -131,17 +132,10 @@ func newServiceInstanceAPI(c *client.Client) ServiceInstances {
 	}
 }
 
-func (s *serviceInstance) Create(name, planGUID, spaceGUID string, params map[string]interface{}, tags []string) (*ServiceInstanceFields, error) {
-	payload := ServiceInstanceCreateRequest{
-		Name:      name,
-		PlanGUID:  planGUID,
-		SpaceGUID: spaceGUID,
-		Params:    params,
-		Tags:      tags,
-	}
+func (s *serviceInstance) Create(req ServiceInstanceCreateRequest) (*ServiceInstanceFields, error) {
 	rawURL := "/v2/service_instances?accepts_incomplete=true&async=true"
 	serviceFields := ServiceInstanceFields{}
-	_, err := s.client.Post(rawURL, payload, &serviceFields)
+	_, err := s.client.Post(rawURL, req, &serviceFields)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +164,7 @@ func (s *serviceInstance) FindByName(instanceName string) (*ServiceInstance, err
 		return nil, err
 	}
 	path := httpReq.URL.String()
-	services, err := s.listServicesWithPath(path)
+	services, err := listServicesWithPath(s.client, path)
 	if err != nil {
 		return nil, err
 	}
@@ -186,25 +180,34 @@ func (s *serviceInstance) Delete(instanceGUID string) error {
 	return err
 }
 
-func (s *serviceInstance) Update(newName, instanceGUID, planGUID string, params map[string]interface{}, tags []string) (*ServiceInstanceFields, error) {
-	payload := ServiceInstanceUpdateRequest{
-		Name:     newName,
-		PlanGUID: planGUID,
-		Params:   params,
-		Tags:     tags,
-	}
+func (s *serviceInstance) Update(instanceGUID string, req ServiceInstanceUpdateRequest) (*ServiceInstanceFields, error) {
 	rawURL := fmt.Sprintf("/v2/service_instances/%s?accepts_incomplete=true&async=true", instanceGUID)
 	serviceFields := ServiceInstanceFields{}
-	_, err := s.client.Put(rawURL, payload, &serviceFields)
+	_, err := s.client.Put(rawURL, req, &serviceFields)
 	if err != nil {
 		return nil, err
 	}
 	return &serviceFields, nil
 }
 
-func (s *serviceInstance) listServicesWithPath(path string) ([]ServiceInstance, error) {
+func (s *serviceInstance) ListServiceBindings(instanceGUID string) ([]ServiceBinding, error) {
+	rawURL := fmt.Sprintf("/v2/service_instances/%s/service_bindings", instanceGUID)
+	req := rest.GetRequest(rawURL)
+	httpReq, err := req.Build()
+	if err != nil {
+		return nil, err
+	}
+	path := httpReq.URL.String()
+	sb, err := listServiceBindingWithPath(s.client, path)
+	if err != nil {
+		return nil, err
+	}
+	return sb, nil
+}
+
+func listServicesWithPath(client *client.Client, path string) ([]ServiceInstance, error) {
 	var services []ServiceInstance
-	_, err := s.client.GetPaginated(path, ServiceInstanceResource{}, func(resource interface{}) bool {
+	_, err := client.GetPaginated(path, ServiceInstanceResource{}, func(resource interface{}) bool {
 		if serviceInstanceResource, ok := resource.(ServiceInstanceResource); ok {
 			services = append(services, serviceInstanceResource.ToModel())
 			return true

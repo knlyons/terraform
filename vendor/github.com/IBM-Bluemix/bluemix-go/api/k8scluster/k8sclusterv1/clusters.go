@@ -1,13 +1,13 @@
 package k8sclusterv1
 
 import (
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/IBM-Bluemix/bluemix-go/client"
 	"github.com/IBM-Bluemix/bluemix-go/helpers"
@@ -106,17 +106,29 @@ type ServiceBindResponse struct {
 	Binding             string `json:"binding"`
 }
 
+//BoundService ...
+type BoundService struct {
+	ServiceName    string `json:"servicename"`
+	ServiceID      string `json:"serviceid"`
+	ServiceKeyName string `json:"servicekeyname"`
+	Namespace      string `json:"namespace"`
+}
+
+type BoundServices []BoundService
+
 //Clusters interface
 type Clusters interface {
-	Create(params *ClusterCreateRequest, target *ClusterTargetHeader) (ClusterCreateResponse, error)
-	List(target *ClusterTargetHeader) ([]ClusterInfo, error)
-	Delete(name string, target *ClusterTargetHeader) error
-	Find(name string, target *ClusterTargetHeader) (ClusterInfo, error)
-	GetClusterConfig(name, homeDir string, target *ClusterTargetHeader) (string, error)
-	UnsetCredentials(target *ClusterTargetHeader) error
-	SetCredentials(slUsername, slAPIKey string, target *ClusterTargetHeader) error
-	BindService(params *ServiceBindRequest, target *ClusterTargetHeader) (ServiceBindResponse, error)
-	UnBindService(clusterNameOrID, namespaceID, serviceInstanceGUID string, target *ClusterTargetHeader) error
+	Create(params ClusterCreateRequest, target ClusterTargetHeader) (ClusterCreateResponse, error)
+	List(target ClusterTargetHeader) ([]ClusterInfo, error)
+	Delete(name string, target ClusterTargetHeader) error
+	Find(name string, target ClusterTargetHeader) (ClusterInfo, error)
+	GetClusterConfig(name, homeDir string, admin bool, target ClusterTargetHeader) (string, error)
+	UnsetCredentials(target ClusterTargetHeader) error
+	SetCredentials(slUsername, slAPIKey string, target ClusterTargetHeader) error
+	BindService(params ServiceBindRequest, target ClusterTargetHeader) (ServiceBindResponse, error)
+	UnBindService(clusterNameOrID, namespaceID, serviceInstanceGUID string, target ClusterTargetHeader) error
+	ListServicesBoundToCluster(clusterNameOrID, namespace string, target ClusterTargetHeader) (BoundServices, error)
+	FindServiceBoundToCluster(clusterNameOrID, serviceName, namespace string, target ClusterTargetHeader) (BoundService, error)
 }
 
 type clusters struct {
@@ -130,21 +142,21 @@ func newClusterAPI(c *client.Client) Clusters {
 }
 
 //Create ...
-func (r *clusters) Create(params *ClusterCreateRequest, target *ClusterTargetHeader) (ClusterCreateResponse, error) {
+func (r *clusters) Create(params ClusterCreateRequest, target ClusterTargetHeader) (ClusterCreateResponse, error) {
 	var cluster ClusterCreateResponse
 	_, err := r.client.Post("/v1/clusters", params, &cluster, target.ToMap())
 	return cluster, err
 }
 
 //Delete ...
-func (r *clusters) Delete(name string, target *ClusterTargetHeader) error {
+func (r *clusters) Delete(name string, target ClusterTargetHeader) error {
 	rawURL := fmt.Sprintf("/v1/clusters/%s", name)
-	_, err := r.client.Delete(rawURL, target)
+	_, err := r.client.Delete(rawURL, target.ToMap())
 	return err
 }
 
 //List ...
-func (r *clusters) List(target *ClusterTargetHeader) ([]ClusterInfo, error) {
+func (r *clusters) List(target ClusterTargetHeader) ([]ClusterInfo, error) {
 	clusters := []ClusterInfo{}
 	_, err := r.client.Get("/v1/clusters", &clusters, target.ToMap())
 	if err != nil {
@@ -155,7 +167,7 @@ func (r *clusters) List(target *ClusterTargetHeader) ([]ClusterInfo, error) {
 }
 
 //Find ...
-func (r *clusters) Find(name string, target *ClusterTargetHeader) (ClusterInfo, error) {
+func (r *clusters) Find(name string, target ClusterTargetHeader) (ClusterInfo, error) {
 	rawURL := fmt.Sprintf("/v1/clusters/%s", name)
 	cluster := ClusterInfo{}
 	_, err := r.client.Get(rawURL, &cluster, target.ToMap())
@@ -167,20 +179,24 @@ func (r *clusters) Find(name string, target *ClusterTargetHeader) (ClusterInfo, 
 }
 
 //GetClusterConfig ...
-func (r *clusters) GetClusterConfig(name, dir string, target *ClusterTargetHeader) (string, error) {
-	rawURL := fmt.Sprintf("/v1/clusters/%s/config", name)
+func (r *clusters) GetClusterConfig(name, dir string, admin bool, target ClusterTargetHeader) (string, error) {
 	if !helpers.FileExists(dir) {
 		return "", fmt.Errorf("Path: %q, to download the config doesn't exist", dir)
 	}
-
-	now := time.Now()
-	zipName := fmt.Sprintf("%s_kubeconfig-%d", name, now.UnixNano())
-	downloadPath := fmt.Sprintf("%s/%s.zip", dir, zipName)
-
+	rawURL := fmt.Sprintf("/v1/clusters/%s/config", name)
+	if admin {
+		rawURL += "/admin"
+	}
+	resultDir := ComputeClusterConfigDir(dir, name, admin)
+	const kubeConfigName = "config.yml"
+	err := os.MkdirAll(resultDir, 0755)
+	if err != nil {
+		return "", fmt.Errorf("Error creating directory to download the cluster config")
+	}
+	downloadPath := filepath.Join(resultDir, "config.zip")
 	trace.Logger.Println("Will download the kubeconfig at", downloadPath)
 
 	var out *os.File
-	var err error
 	if out, err = os.Create(downloadPath); err != nil {
 		return "", err
 	}
@@ -190,54 +206,47 @@ func (r *clusters) GetClusterConfig(name, dir string, target *ClusterTargetHeade
 	if err != nil {
 		return "", err
 	}
-
 	trace.Logger.Println("Downloaded the kubeconfig at", downloadPath)
-
-	if err = helpers.Unzip(downloadPath, dir); err != nil {
+	if err = helpers.Unzip(downloadPath, resultDir); err != nil {
 		return "", err
 	}
-
-	var unzippedFolderPath string
-	homeDirFiles, _ := ioutil.ReadDir(dir)
-	for _, homeDirFile := range homeDirFiles {
-		if homeDirFile.IsDir() && strings.HasPrefix(homeDirFile.Name(), "kubeConfig") {
-			unzippedFolderPath = fmt.Sprintf("%s/%s", dir, homeDirFile.Name())
+	defer helpers.RemoveFilesWithPattern(resultDir, "kube")
+	var kubedir, kubeyml string
+	files, _ := ioutil.ReadDir(resultDir)
+	for _, f := range files {
+		if f.IsDir() && strings.HasPrefix(f.Name(), "kube") {
+			kubedir = filepath.Join(resultDir, f.Name())
+			files, _ := ioutil.ReadDir(kubedir)
+			for _, f := range files {
+				old := filepath.Join(kubedir, f.Name())
+				new := filepath.Join(kubedir, "../", f.Name())
+				if strings.HasSuffix(f.Name(), ".yml") {
+					new = filepath.Join(kubedir, "../", kubeConfigName)
+					kubeyml = new
+				}
+				err := os.Rename(old, new)
+				if err != nil {
+					return "", fmt.Errorf("Couldn't rename: %q", err)
+				}
+			}
 			break
 		}
 	}
-
-	if unzippedFolderPath == "" {
-		return "", errors.New("There is no directory with prefix kubeConfig in the unzipped file")
+	if kubedir == "" {
+		return "", errors.New("Unable to locate kube config in zip archive")
 	}
-
-	//Rename the config folder to prefix with the cluster name for better identification in the directory
-	targetDirPath := filepath.Join(filepath.Dir(unzippedFolderPath), zipName)
-	if err = os.Rename(unzippedFolderPath, targetDirPath); err != nil {
-		return "", err
-	}
-
-	homeDirFiles, err = ioutil.ReadDir(targetDirPath)
-	if err != nil {
-		return "", fmt.Errorf("Couldn't read %q. Error occured: %v", targetDirPath, err)
-	}
-	for _, homeDirFile := range homeDirFiles {
-		if strings.HasSuffix(homeDirFile.Name(), ".yml") {
-			return filepath.Join(targetDirPath, homeDirFile.Name()), nil
-		}
-	}
-	return "", errors.New("Unable to locate kube config in zip archive")
-
+	return filepath.Abs(kubeyml)
 }
 
 //UnsetCredentials ...
-func (r *clusters) UnsetCredentials(target *ClusterTargetHeader) error {
+func (r *clusters) UnsetCredentials(target ClusterTargetHeader) error {
 	rawURL := fmt.Sprintf("/v1/credentials")
 	_, err := r.client.Delete(rawURL, target.ToMap())
 	return err
 }
 
 //SetCredentials ...
-func (r *clusters) SetCredentials(slUsername, slAPIKey string, target *ClusterTargetHeader) error {
+func (r *clusters) SetCredentials(slUsername, slAPIKey string, target ClusterTargetHeader) error {
 	slHeader := &ClusterSoftlayerHeader{
 		SoftLayerAPIKey:   slAPIKey,
 		SoftLayerUsername: slUsername,
@@ -247,7 +256,7 @@ func (r *clusters) SetCredentials(slUsername, slAPIKey string, target *ClusterTa
 }
 
 //BindService ...
-func (r *clusters) BindService(params *ServiceBindRequest, target *ClusterTargetHeader) (ServiceBindResponse, error) {
+func (r *clusters) BindService(params ServiceBindRequest, target ClusterTargetHeader) (ServiceBindResponse, error) {
 	rawURL := fmt.Sprintf("/v1/clusters/%s/services", params.ClusterNameOrID)
 	payLoad := struct {
 		SpaceGUID               string `json:"spaceGUID" binding:"required"`
@@ -264,8 +273,60 @@ func (r *clusters) BindService(params *ServiceBindRequest, target *ClusterTarget
 }
 
 //UnBindService ...
-func (r *clusters) UnBindService(clusterNameOrID, namespaceID, serviceInstanceGUID string, target *ClusterTargetHeader) error {
+func (r *clusters) UnBindService(clusterNameOrID, namespaceID, serviceInstanceGUID string, target ClusterTargetHeader) error {
 	rawURL := fmt.Sprintf("/v1/clusters/%s/services/%s/%s", clusterNameOrID, namespaceID, serviceInstanceGUID)
 	_, err := r.client.Delete(rawURL, target.ToMap())
 	return err
+}
+
+//ComputeClusterConfigDir ...
+func ComputeClusterConfigDir(dir, name string, admin bool) string {
+	resultDirPrefix := name
+	resultDirSuffix := "_k8sconfig"
+	if len(name) < 30 {
+		//Make it longer for uniqueness
+		h := sha1.New()
+		h.Write([]byte(name))
+		resultDirPrefix = fmt.Sprintf("%x_%s", h.Sum(nil), name)
+	}
+	if admin {
+		resultDirPrefix = fmt.Sprintf("%s_admin", resultDirPrefix)
+	}
+	resultDir := filepath.Join(dir, fmt.Sprintf("%s%s", resultDirPrefix, resultDirSuffix))
+	return resultDir
+}
+
+//ListServicesBoundToCluster ...
+func (r *clusters) ListServicesBoundToCluster(clusterNameOrID, namespace string, target ClusterTargetHeader) (BoundServices, error) {
+	var boundServices BoundServices
+	var path string
+
+	if namespace == "" {
+		path = fmt.Sprintf("/v1/clusters/%s/services", clusterNameOrID)
+
+	} else {
+		path = fmt.Sprintf("/v1/clusters/%s/services/%s", clusterNameOrID, namespace)
+	}
+	_, err := r.client.Get(path, &boundServices, target.ToMap())
+	if err != nil {
+		return boundServices, err
+	}
+
+	return boundServices, err
+}
+
+//FindServiceBoundToCluster...
+func (r *clusters) FindServiceBoundToCluster(clusterNameOrID, serviceNameOrId, namespace string, target ClusterTargetHeader) (BoundService, error) {
+	var boundService BoundService
+	boundServices, err := r.ListServicesBoundToCluster(clusterNameOrID, namespace, target)
+	if err != nil {
+		return boundService, err
+	}
+	for _, boundService := range boundServices {
+		if strings.Compare(boundService.ServiceName, serviceNameOrId) == 0 || strings.Compare(boundService.ServiceID, serviceNameOrId) == 0 {
+			return boundService, nil
+		}
+	}
+
+	return boundService, err
 }

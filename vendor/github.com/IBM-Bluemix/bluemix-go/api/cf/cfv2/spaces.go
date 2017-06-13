@@ -2,6 +2,7 @@ package cfv2
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/IBM-Bluemix/bluemix-go/bmxerror"
 	"github.com/IBM-Bluemix/bluemix-go/client"
@@ -17,7 +18,7 @@ type SpaceCreateRequest struct {
 
 //SpaceUpdateRequest ...
 type SpaceUpdateRequest struct {
-	Name string `json:"name"`
+	Name *string `json:"name,omitempty"`
 }
 
 //Space ...
@@ -71,14 +72,22 @@ func (resource *SpaceResource) ToFields() Space {
 	}
 }
 
+type RouteFilter struct {
+	DomainGUID string
+	Host       *string
+	Path       *string
+	Port       *int
+}
+
 //Spaces ...
 type Spaces interface {
 	ListSpacesInOrg(orgGUID string) ([]Space, error)
 	FindByNameInOrg(orgGUID string, name string) (*Space, error)
-	Create(name, orgGUID, spaceQuotaGUID string) (*SpaceFields, error)
-	Update(newName, spaceGUID string) (*SpaceFields, error)
+	Create(req SpaceCreateRequest) (*SpaceFields, error)
+	Update(spaceGUID string, req SpaceUpdateRequest) (*SpaceFields, error)
 	Delete(spaceGUID string) error
 	Get(spaceGUID string) (*SpaceFields, error)
+	ListRoutes(spaceGUID string, req RouteFilter) ([]Route, error)
 }
 
 type spaces struct {
@@ -138,15 +147,10 @@ func (r *spaces) listSpacesWithPath(path string) ([]Space, error) {
 	})
 	return spaces, err
 }
-func (r *spaces) Create(name, orgGUID, spaceQuotaGUID string) (*SpaceFields, error) {
-	payload := SpaceCreateRequest{
-		Name:           name,
-		OrgGUID:        orgGUID,
-		SpaceQuotaGUID: spaceQuotaGUID,
-	}
+func (r *spaces) Create(req SpaceCreateRequest) (*SpaceFields, error) {
 	rawURL := "/v2/spaces?accepts_incomplete=true&async=true"
 	spaceFields := SpaceFields{}
-	_, err := r.client.Post(rawURL, payload, &spaceFields)
+	_, err := r.client.Post(rawURL, req, &spaceFields)
 	if err != nil {
 		return nil, err
 	}
@@ -164,13 +168,10 @@ func (r *spaces) Get(spaceGUID string) (*SpaceFields, error) {
 	return &spaceFields, err
 }
 
-func (r *spaces) Update(newName, spaceGUID string) (*SpaceFields, error) {
-	payload := SpaceUpdateRequest{
-		Name: newName,
-	}
+func (r *spaces) Update(spaceGUID string, req SpaceUpdateRequest) (*SpaceFields, error) {
 	rawURL := fmt.Sprintf("/v2/spaces/%s?accepts_incomplete=true&async=true", spaceGUID)
 	spaceFields := SpaceFields{}
-	_, err := r.client.Put(rawURL, payload, &spaceFields)
+	_, err := r.client.Put(rawURL, req, &spaceFields)
 	if err != nil {
 		return nil, err
 	}
@@ -181,4 +182,37 @@ func (r *spaces) Delete(spaceGUID string) error {
 	rawURL := fmt.Sprintf("/v2/spaces/%s", spaceGUID)
 	_, err := r.client.Delete(rawURL)
 	return err
+}
+
+func (r *spaces) ListRoutes(spaceGUID string, routeFilter RouteFilter) ([]Route, error) {
+	rawURL := fmt.Sprintf("/v2/spaces/%s/routes", spaceGUID)
+	req := rest.GetRequest(rawURL)
+	var query string
+	if routeFilter.DomainGUID != "" {
+		query = "domain_guid:" + routeFilter.DomainGUID + ";"
+	}
+	if routeFilter.Host != nil {
+		query += "host:" + *routeFilter.Host + ";"
+	}
+	if routeFilter.Path != nil {
+		query += "path:" + *routeFilter.Path + ";"
+	}
+	if routeFilter.Port != nil {
+		query += "port:" + strconv.Itoa(*routeFilter.Port) + ";"
+	}
+
+	if len(query) > 0 {
+		req.Query("q", query)
+	}
+
+	httpReq, err := req.Build()
+	if err != nil {
+		return nil, err
+	}
+	path := httpReq.URL.String()
+	route, err := listRouteWithPath(r.client, path)
+	if err != nil {
+		return nil, err
+	}
+	return route, nil
 }
